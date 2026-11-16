@@ -1,0 +1,4182 @@
+﻿<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Beslutsträd och skript för guidade formulär (v0.91)</title>
+<style>
+/* System font fallbacks – no external dependency */
+:root {
+  --font-ui:   -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  --font-head: 'Segoe UI', system-ui, sans-serif;
+}
+</style>
+<style>
+/* * { margin: 0; padding: 0; box-sizing: border-box; } */
+
+:root {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface2: #ffffff;
+  --border: #1c1c2e;
+  --border2: #252538;
+  --text: #dde2f0;
+  --text-dim: #444444;
+  --text-mid: #202020;
+  --q-color: #4f8ef7;
+  --q-glow: rgba(79,142,247,0.18);
+  --q-bg: rgb(202, 223, 243);
+  --opt-color: #444444;
+  --opt-glow: rgba(176,110,247,0.18);
+  --opt-bg: #eff0a9;
+  --fq-color: #444444;
+  --fq-glow: rgba(34,211,200,0.15);
+  --fq-bg: rgb(202, 223, 243);
+  --exit-color: #444444;
+  --exit-glow: rgba(255,179,71,0.15);
+  --exit-bg: #ffd8a4;
+}
+
+html, body { height: 100%; overflow: hidden; }
+
+/* Safe area insets (notch / gesture bar) */
+:root {
+  --sat: env(safe-area-inset-top,    0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left,   0px);
+  --sar: env(safe-area-inset-right,  0px);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* ── HEADER ── */
+#header {
+  height: 50px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 10px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 200;
+}
+
+
+.vsep { width: 1px; height: 22px; background: var(--border2); flex-shrink: 0; }
+
+.header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+.gen-btn {
+  padding: 7px 16px;
+  background: #ffffff;
+  border: none; border-radius: 6px;
+  color: #000000; font-family: var(--font-ui);
+  font-size: 12px; font-weight: 600;
+  cursor: pointer; letter-spacing: 0.02em;
+  transition: opacity 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+
+.gen-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+.gen-btn:active { transform: none; }
+
+.test-btn {
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid var(--fq-color);
+  border-radius: 6px;
+  color: var(--fq-color);
+  font-family: var(--font-ui);
+  font-size: 11px; font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.test-btn:hover { background: var(--fq-bg); box-shadow: 0 0 8px var(--fq-glow); }
+
+.undo-btn {
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+  user-select: none;
+}
+.undo-btn:hover:not(:disabled) { color: var(--text); border-color: var(--text-mid); }
+.undo-btn:disabled { opacity: 0.28; cursor: default; }
+
+.clear-btn {
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-family: var(--font-ui);
+  font-size: 11px; font-weight: 500;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+}
+.clear-btn:hover {
+  border-color: #ef4444; color: #ef4444; border-color: #ef4444; }
+
+.tool-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* ── GEMENSAM FONTSTORLEK FÖR HEADERNS VERKTYGSKNAPPAR ── */
+.header-right .clear-btn,
+.header-right .test-btn,
+.header-right .gen-btn,
+#flow-tools .undo-btn {
+  font-size: 11px !important;
+}
+
+@media (max-width: 900px) {
+  #header { height: auto; min-height: 50px; flex-wrap: wrap; align-items: flex-start; padding: 8px 10px; gap: 8px; }
+  .vsep { display: none; }
+  #flow-tools { order: 3; width: 100%; overflow-x: auto; overflow-y: hidden; padding-bottom: 2px; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+  .header-right { order: 4; width: 100%; margin-left: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px; }
+  .gen-btn { padding: 7px 12px; font-size: 11px; }
+  .clear-btn { padding: 6px 9px; font-size: 10px; }
+}
+@media (max-width: 640px) {
+  #header { gap: 6px; }
+  .header-right { justify-content: stretch; }
+  .header-right .clear-btn, .header-right .test-btn { flex: 1 1 auto; min-width: 84px; text-align: center; }
+  .header-right .gen-btn { flex: 1 1 100%; width: 100%; }
+}
+@media (max-width: 420px) {
+  #header { padding: 8px 8px; }
+  .header-right .clear-btn, .header-right .test-btn { font-size: 10px; min-width: 72px; }
+  .header-right .gen-btn { font-size: 10.5px; padding: 8px 10px; }
+}
+
+/* ── MAIN ── */
+#main { display: flex; flex: 1; min-height: 0; }
+
+/* ── CANVAS ── */
+#canvas {
+  flex: 1; overflow: hidden; position: relative; isolation: isolate;
+  background: #ffffff;
+  cursor: default;
+}
+#canvas::before, #canvas::after {
+  display: none;
+}
+#canvas::before {
+  bottom: -2%; transform-origin: center bottom; transform: perspective(1100px) rotateX(68deg) scaleY(1.18);
+  background: linear-gradient(180deg, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0.18) 20%, rgba(0,0,0,0.72) 100%), repeating-linear-gradient(to right, rgba(188, 82, 255, 0) 0 58px, rgba(188, 82, 255, 0.42) 58px 60px), repeating-linear-gradient(to bottom, rgba(188, 82, 255, 0) 0 44px, rgba(188, 82, 255, 0.34) 44px 46px);
+  border-top: 1px solid rgba(224, 132, 255, 0.42); box-shadow: 0 -1px 10px rgba(188,82,255,0.18), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+#canvas::after {
+  top: -2%; transform-origin: center top; transform: perspective(1100px) rotateX(-68deg) scaleY(1.18);
+  background: linear-gradient(0deg, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0.18) 20%, rgba(0,0,0,0.72) 100%), repeating-linear-gradient(to right, rgba(188, 82, 255, 0) 0 58px, rgba(188, 82, 255, 0.42) 58px 60px), repeating-linear-gradient(to top, rgba(188, 82, 255, 0) 0 44px, rgba(188, 82, 255, 0.34) 44px 46px);
+  border-bottom: 1px solid rgba(224, 132, 255, 0.42); box-shadow: 0 1px 10px rgba(188,82,255,0.18), inset 0 -1px 0 rgba(255,255,255,0.04);
+}
+#canvas.panning     { cursor: grabbing; }
+#canvas.connecting  { cursor: crosshair; }
+
+#world { position: absolute; top: 0; left: 0; transform-origin: 0 0; z-index: 1; }
+
+#svg-layer {
+  position: absolute; z-index: 1; top: 0; left: 0; width: 12000px; height: 12000px;
+  pointer-events: none; overflow: visible;
+}
+#svg-layer path[data-conn] { pointer-events: stroke; cursor: pointer; }
+
+/* ── CARDS ── */
+/* Alla kort */
+.card {
+  position: absolute; border-radius: 10px; border: 2px solid var(--card-color);
+  background: var(--card-bg); padding: 11px 13px 14px; cursor: grab; user-select: none;
+  min-width: 170px; box-shadow: 0 0 0 1px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04);
+  transition: box-shadow 0.15s;
+}
+
+/* Gör kantlinjen tunnare samt inga avrundade hörn för svarsalternativ */
+.card[data-type="option"] {
+  border-radius: 0;
+  border: 0.5px
+}
+
+.card:hover { box-shadow: 0 0 0 1px var(--card-color), 0 0 24px var(--card-glow), inset 0 1px 0 rgba(255,255,255,0.06); }
+.card.dragging { cursor: grabbing; box-shadow: 0 0 0 2px var(--card-color), 0 4px 32px var(--card-glow), 0 20px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08); z-index: 1000; }
+.card.connect-highlight { box-shadow: 0 0 0 2px #fff, 0 0 30px rgba(255,255,255,0.2); }
+.card.val-error { box-shadow: 0 0 0 2px #ef4444, 0 0 28px rgba(239,68,68,0.18), inset 0 1px 0 rgba(255,255,255,0.06); }
+.card.val-warn { box-shadow: 0 0 0 2px #f59e0b, 0 0 28px rgba(245,158,11,0.16), inset 0 1px 0 rgba(255,255,255,0.06); }
+
+/* Färgkodning för alla kortyper */
+.card[data-type="question"]     { --card-color: var(--q-color);    --card-bg: var(--q-bg);   --card-glow: var(--q-glow);   }
+
+.card[data-type="option"]       { --card-color: var(--opt-color);  --card-bg: var(--opt-bg); --card-glow: var(--opt-glow); }
+
+.card[data-type="followup"]     { --card-color: var(--fq-color);   --card-bg: var(--fq-bg);  --card-glow: var(--fq-glow);  }
+
+.card[data-type="exit"] { 
+  --card-color: var(--exit-color); 
+  --card-bg: var(--exit-bg); 
+  --card-glow: var(--exit-glow);
+}
+
+/* Runda utgångar */
+.card[data-type="exit"] {
+  width: 90px !important;
+  min-width:90px !important;
+  height: 90px !important;
+  box-sizing: border-box;
+  /* padding: 18px; */
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.card[data-type="exit"] .card-chip {
+  margin-bottom: 5px;
+}
+.card[data-type="exit"] .port-in {
+  top: -6px !important;
+  bottom: auto !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+}
+.card[data-type="exit"] .card-label {
+  max-width: 65px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+}
+.card[data-type="exit"] .exit-badge {
+  top: 8px;
+  right: 14px;
+}
+/* Ta bort-knappen i höger hörn, i höjd med utropstecknet (.exit-warn) i vänster hörn */
+.card[data-type="exit"] .card-del {
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+}
+
+/* Rött utropstecken när utgångens detaljer är ofullständiga */
+.exit-warn {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  box-shadow: 0 0 0 2px #ffffff;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #d93025;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  cursor: help;
+}
+.exit-warn[hidden] { display: none; }
+
+/* ✎-knappen på utgångar – kantlinje syns bara vid hover */
+.card[data-type="exit"] .properties-btn {
+  margin-top: 6px;              /* flytta knappen nedåt – justera efter smak */
+  padding: 1px 6px;
+  background: transparent;
+  border: 1px solid transparent; /* transparent i stället för none så knappen inte hoppar vid hover */
+  border-radius: 4px;
+  color: var(--exit-color);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.12s;
+}
+.card[data-type="exit"] .properties-btn:hover,
+.card[data-type="exit"] .properties-btn:focus-visible {
+  border-color: var(--exit-color);
+}
+
+/* Tooltip för ✎-knappen – ligger i body så den inte påverkas av zoom eller klipps av kortet */
+#exitTooltip {
+  position: fixed;
+  z-index: 10000;
+  max-width: 320px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--exit-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+  color: var(--text-mid);
+  font-size: 12px;
+  line-height: 1.4;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+#exitTooltip.visible { opacity: 1; }
+#exitTooltip .tt-title { font-weight: 600; margin-bottom: 4px; }
+#exitTooltip .tt-row { margin-top: 3px; }
+#exitTooltip .tt-key { color: var(--text-dim); font-weight: 600; }
+#exitTooltip .tt-val { white-space: pre-wrap; word-break: break-word; }
+#exitTooltip .tt-empty { color: var(--text-dim); font-style: italic; }
+
+/* ── ISOLATED CARD HOVER ── */
+.card.isolated {
+  border-color: var(--card-color) !important;
+  background: var(--card-bg) !important;
+}
+
+.card.isolated:hover {
+  background: color-mix(in srgb, var(--card-color) 12%, var(--card-bg)) !important;
+  box-shadow: 0 0 0 1px var(--card-color), 0 0 24px var(--card-glow), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+.card-chip {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 900;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--card-color);
+  margin-bottom: 9px; display: flex; align-items: center; gap: 5px; opacity: 1;
+}
+
+.card-label {
+  font-size: 16px; font-weight: 600; color: var(--text); line-height: 1.4;
+  outline: none; cursor: text; min-height: 19px; word-break: break-word;
+}
+.card[data-type="question"] .card-label,
+.card[data-type="option"] .card-label,
+.card[data-type="followup"] .card-label,
+.card[data-type="exit"] .card-label {
+  color: #111827;
+}
+.card[data-type="question"] .card-label:focus,
+.card[data-type="option"] .card-label:focus,
+.card[data-type="followup"] .card-label:focus,
+.card[data-type="exit"] .card-label:focus {
+  color: #551827;
+}
+.card-label:empty::before { content: attr(data-placeholder); color: var(--text-dim); pointer-events: none; font-style: italic; }
+
+.exit-badge {
+  position: absolute; top: 9px; right: 28px; font-family: var(--font-mono);
+  font-size: 9px; font-weight: 600; color: var(--exit-color); opacity: 0.5;
+}
+
+.card-del {
+  position: absolute; top: 7px; right: 7px; width: 15px; height: 15px;
+  background: transparent; border: none; border-radius: 3px; color: var(--text-dim);
+  font-size: 9px; cursor: pointer; display: none; align-items: center; justify-content: center;
+  transition: background 0.1s, color 0.1s;
+}
+.card:hover .card-del { display: flex; }
+.card-del:hover { background: rgba(239,68,68,0.2); color: #ef4444; }
+
+/* ── PORTS ── */
+.port {
+  position: absolute; width: 11px; height: 11px; border-radius: 50%;
+  background: var(--card-color); border: 2px solid var(--bg); z-index: 10;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.port-out { bottom: -6px; left: 50%; transform: translateX(-50%); cursor: crosshair; }
+.port-in { top: -6px; left: 50%; transform: translateX(-50%); cursor: cell; }
+.port:hover, .port.active { transform: translateX(-50%) scale(1.5); box-shadow: 0 0 8px var(--card-color); }
+
+/* ── DROOLS PANEL ── */
+#drools-panel, #template-panel, #create-panel, #timetype-panel {
+  width: 0; overflow: hidden; background: var(--surface); border-left: 1px solid var(--border);
+  display: flex; flex-direction: column; transition: width 0.28s cubic-bezier(0.4,0,0.2,1); flex-shrink: 0;
+}
+#drools-panel.open, #template-panel.open, #create-panel.open, #timetype-panel.open { width: var(--panel-w, 440px); }
+#drools-panel, #template-panel, #create-panel, #timetype-panel { position: relative; }
+#drools-panel.resizing, #template-panel.resizing, #create-panel.resizing, #timetype-panel.resizing { transition: none; }
+
+/* Draghandtag i panelens vänsterkant för att ändra bredden */
+.panel-resize {
+  position: absolute; top: 0; bottom: 0; left: 0; width: 7px; z-index: 5;
+  cursor: col-resize; touch-action: none;
+}
+.panel-resize::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 3px;
+  background: transparent; transition: background 0.12s;
+}
+.panel-resize:hover::after, .resizing .panel-resize::after { background: var(--accent, #f5a623); }
+body.panel-resizing { cursor: col-resize; user-select: none; }
+@media (max-width: 768px) { .panel-resize { display: none; } }
+
+#dp-header, #tp-header, #cp-header, #ttp-header {
+  padding: 12px 14px 11px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+}
+#dp-header h2, #tp-header h2, #cp-header h2, #ttp-header h2 {
+  font-family: var(--font-head); font-size: 12px; font-weight: 700;
+  letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-mid);
+}
+.dp-actions { display: flex; gap: 6px; }
+.dp-btn {
+  padding: 4px 9px; background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: 4px; color: var(--text-mid); font-size: 10px; font-weight: 500;
+  cursor: pointer; font-family: var(--font-ui); transition: color 0.1s, border-color 0.1s;
+}
+.dp-btn:hover { color: var(--text); border-color: var(--text-dim); }
+.dp-close { color: var(--text-dim); }
+.dp-close:hover { color: #ef4444; border-color: #ef4444; }
+
+#dp-stats { padding: 8px 14px; border-bottom: 1px solid var(--border); display: flex; gap: 14px; flex-shrink: 0; }
+.stat { font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); }
+.stat span { color: var(--text-mid); font-weight: 500; }
+
+#dp-validation { padding: 12px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+#dp-validation h3 { font-family: var(--font-head); font-size: 10px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-mid); margin-bottom: 8px; }
+.validation-summary { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.validation-pill { padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 600; border: 1px solid var(--border2); background: var(--surface2); color: var(--text-mid); }
+.validation-pill.err { border-color: rgba(239,68,68,0.45); color: #fca5a5; }
+.validation-pill.warn { border-color: rgba(245,158,11,0.45); color: #fcd34d; }
+.validation-pill.ok { border-color: rgba(34,197,94,0.45); color: #86efac; }
+.validation-list { display: flex; flex-direction: column; gap: 6px; max-height: 170px; overflow-y: auto; }
+.validation-item { border: 1px solid var(--border2); border-left-width: 3px; border-radius: 6px; padding: 7px 9px; background: var(--surface2); }
+.validation-item.err { border-left-color: #ef4444; }
+.validation-item.warn { border-left-color: #f59e0b; }
+.validation-item.ok { border-left-color: #22c55e; }
+.validation-item strong { display: block; font-size: 12px; margin-bottom: 2px; }
+.validation-item div { font-size: 10.5px; color: var(--text-mid); line-height: 1.45; }
+#dp-output {
+  flex: 1; overflow-y: auto; padding: 14px 16px; font-family: var(--font-mono);
+  font-size: 11px; line-height: 1.75; color: #a0a0c8; white-space: pre;
+}
+/* Tabell tidstyper */
+/* Utskrift av tabellen (knappen Skriv ut i tabellvyn) – allt utom tabellen döljs */
+@media print {
+  html:has(body.print-timetype) { height: auto !important; overflow: visible !important; }
+  body.print-timetype { height: auto !important; overflow: visible !important; display: block !important; background: #ffffff; }
+  body.print-timetype > *:not(#main) { display: none !important; }
+  body.print-timetype #main { display: block !important; }
+  body.print-timetype #canvas,
+  body.print-timetype #drools-panel,
+  body.print-timetype #template-panel,
+  body.print-timetype #create-panel,
+  body.print-timetype #timetype-panel .panel-resize,
+  body.print-timetype #timetype-panel .dp-drag-handle,
+  body.print-timetype #ttp-header .dp-actions,
+  body.print-timetype .ttp-intro { display: none !important; }
+  body.print-timetype #timetype-panel {
+    position: static !important; inset: auto !important; width: auto !important; height: auto !important; max-height: none !important;
+    overflow: visible !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; padding: 0 !important;
+  }
+  body.print-timetype #ttp-header { background: none !important; border: 0 !important; padding: 0 0 10px !important; justify-content: flex-start !important; }
+  body.print-timetype #ttp-header h2 { font-size: 18px !important; }
+  body.print-timetype #ttp-output { overflow: visible !important; padding: 0 !important; }
+  /* Fälten skrivs ut som vanlig text */
+  body.print-timetype .ttp-input { border: 0 !important; background: none !important; padding: 0 !important; max-width: none !important; }
+  body.print-timetype .ttp-input::placeholder { color: transparent; }
+  body.print-timetype .ttp-table tr { break-inside: avoid; }
+  body.print-timetype * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+#ttp-output { flex: 1; overflow-y: auto; padding: 16px 20px 24px; font-size: 13px; color: #222222; }
+.ttp-intro { margin: 0 0 12px; font-size: 12px; color: #666666; }
+.ttp-table { width: 100%; border-collapse: collapse; border: 1px solid #d6d6dc; }
+.ttp-table th, .ttp-table td { padding: 8px 12px; border-bottom: 1px solid #e6e6ea; text-align: left; }
+.ttp-table th { background: #efeff2; font-size: 12px; font-weight: 500; color: #222222; }
+.ttp-table td:first-child, .ttp-table th:first-child { width: 90px; }
+.ttp-table td:nth-child(2), .ttp-table th:nth-child(2) { width: 34%; }
+.ttp-input.ttp-comment { max-width: none; }
+.ttp-table tbody tr:hover { background: #fafafb; }
+.ttp-table td { vertical-align: top; }
+.ttp-input { box-sizing: border-box; width: 100%; max-width: 220px; padding: 6px 9px; border: 1px solid #c8c8cc; border-radius: 4px;
+  background: #ffffff; color: #222222; font: inherit; font-size: 13px; transition: border-color 0.2s, background 0.2s; }
+.ttp-input::placeholder { color: #9a9a9a; font-style: italic; }
+.ttp-input:focus { outline: none; border-color: var(--accent, #f5a623); }
+.ttp-input.saved { border-color: #1e8e3e; background: #e9f5ec; }
+.ttp-count { margin-top: 2px; font-size: 11px; color: #666666; }
+.ttp-note { margin-top: 4px; font-size: 11px; font-style: italic; color: #666666; }
+.ttp-missing { color: #9a9a9a; font-style: italic; }
+.ttp-empty { color: #666666; font-style: italic; }
+#cp-output { flex: 1; overflow-y: auto; padding: 16px 20px 24px; font-size: 12px; line-height: 1.45; color: #222222; }
+.cp-sec { margin-bottom: 16px; }
+.cp-label { display: block; font-size: 13px; font-weight: 500; color: #222222; }
+.cp-help { font-size: 10px; font-style: italic; color: #666666; margin: 2px 0 8px; }
+.cp-input { width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid #c8c8cc; border-radius: 4px; background: #ffffff; color: #222222; font: inherit; font-size: 13px; }
+.cp-input::placeholder { color: #9a9a9a; font-style: italic; }
+.cp-input:focus { outline: none; border-color: #f5a623; }
+.cp-actions { display: flex; justify-content: flex-end; }
+.cp-result { margin-top: 20px; }
+.cp-error { margin-top: 20px; padding: 10px 12px; border: 1px solid #f1b0aa; border-left: 3px solid #d93025; border-radius: 4px; background: #fdecea; color: #b3261e; font-size: 12px; }
+.cp-error strong { display: block; margin-bottom: 4px; font-size: 13px; }
+.cp-error ul { margin: 4px 0 0; padding-left: 18px; }
+.cp-json { margin: 0; max-height: 60vh; overflow: auto; padding: 10px 12px; border: 1px solid #d6d6dc; border-radius: 4px; background: #fafafb; font-family: var(--font-mono); font-size: 11px; line-height: 1.5; color: #333344; white-space: pre; }
+.cp-btn-primary { min-width: 110px; padding: 8px 18px; border: none; border-radius: 4px; background: #f5a623; color: #ffffff; font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.12s; }
+.cp-btn-primary:hover, .cp-btn-primary:focus-visible { background: #d4870a; outline: none; }
+#tp-output { flex: 1; overflow-y: auto; padding: 16px 20px 24px; font-size: 12px; line-height: 1.45; color: #222222; }
+.tp-item { --tp-accent: #f5a623; }
+/* Minimerat kort: bara rubrikraden visas */
+.tp-item.collapsed .tp-body { display: none; }
+.tp-item.collapsed .tp-card-head { border-bottom: none; border-radius: 4px; }
+/* Minimera/expandera-knapp i rubrikradens högra hörn (⌃ = utfällt, ⌄ = minimerat) */
+.tp-toggle { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 22px; height: 22px; border: 1px solid transparent; border-radius: 4px; color: #8a8a8a; font-size: 14px; line-height: 1; transition: transform 0.15s; }
+.tp-item.collapsed .tp-toggle { transform: rotate(180deg); }
+.tp-card-head:hover .tp-toggle { border-color: #c8c8cc; background: #ffffff; color: #f5a623; }
+/* Utgångarna i mall-underlaget */
+.tp-section-title { margin: 22px 0 10px; font-size: 14px; font-weight: 500; color: #222222; }
+.tp-exit-gap { height: 12px; }
+.tp-exit .tp-body { padding-top: 14px; }
+.tp-exit .ex-intro { font-size: 12px; }
+.tp-exit .ex-label { font-size: 14px; }
+.tp-exit .ex-btn-row { grid-template-columns: minmax(130px, 1fr) minmax(0, 4fr); align-items: start; }   /* fälten behåller sin egen höjd även när tidstyps-id visas under URL:en */
+.tp-exit .ex-btn-row > div .tp-field { word-break: break-all; }   /* långa URL:er bryts var som helst */
+.tp-exit .tp-ph { word-break: normal; }
+.tp-exit .tp-area { min-height: 90px; }
+.tp-exit-warn { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: #d93025; color: #ffffff; font-size: 11px; font-weight: 700; cursor: help; }
+
+/* Utskrift av hela flödet (knappen Skriv ut i verktygsraden) – flödet skalas in på en liggande A4 */
+#print-title { display: none; }
+@page flow { size: A4 landscape; margin: 10mm; }
+@media print {
+  html:has(body.print-flow) { height: auto !important; overflow: visible !important; }
+  body.print-flow { height: auto !important; overflow: visible !important; display: block !important; background: #ffffff; }
+  body.print-flow > *:not(#main) { display: none !important; }
+  body.print-flow #main { display: block !important; }
+  body.print-flow #drools-panel,
+  body.print-flow #template-panel,
+  body.print-flow #create-panel,
+  body.print-flow #timetype-panel,
+  body.print-flow #zoom-ctrls,
+  body.print-flow #legend,
+  body.print-flow #conn-indicator,
+  body.print-flow #canvas-hint,
+  body.print-flow .card-del,
+  body.print-flow .ans-move,
+  body.print-flow .properties-btn { display: none !important; }
+  body.print-flow #canvas { page: flow; width: 1047px !important; height: 700px !important; flex: none !important; overflow: hidden !important; }
+  body.print-flow #print-title { display: block; position: absolute; top: 0; left: 0; right: 0; z-index: 2; font-size: 18px; font-weight: 500; color: #222222; }
+  body.print-flow .card { box-shadow: none !important; }
+  body.print-flow * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
+/* Utskrift av mall-underlaget (knappen Skriv ut) – allt utom mall-underlagets innehåll döljs */
+@media print {
+  body.print-template { height: auto !important; overflow: visible !important; display: block !important; background: #ffffff; }
+  html:has(body.print-template) { height: auto !important; overflow: visible !important; }
+  body.print-template > *:not(#main) { display: none !important; }
+  body.print-template #main { display: block !important; }
+  body.print-template #canvas,
+  body.print-template #drools-panel,
+  body.print-template #create-panel,
+  body.print-template #timetype-panel,
+  body.print-template #template-panel .panel-resize,
+  body.print-template #template-panel .dp-drag-handle,
+  body.print-template #tp-header .dp-actions,
+  body.print-template .tp-toggle,
+  body.print-template .tp-plus { display: none !important; }
+  body.print-template #template-panel {
+    position: static !important; inset: auto !important; width: auto !important; height: auto !important; max-height: none !important;
+    overflow: visible !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; padding: 0 !important;
+  }
+  body.print-template #tp-header { background: none !important; border: 0 !important; padding: 0 0 8px !important; }
+  body.print-template #tp-header h2 { font-size: 18px !important; }
+  body.print-template #tp-output { overflow: visible !important; padding: 0 !important; }
+  body.print-template .tp-card { break-inside: avoid; }
+  body.print-template .tp-card-head { break-after: avoid; }
+  body.print-template * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
+/* Streckad avdelare med ⊕ mellan frågorna */
+.tp-divider { display: flex; align-items: center; gap: 8px; margin: 14px 0; }
+.tp-divider-line { flex: 1; border-top: 1px dashed #c8c8cc; }
+.tp-plus { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 1px solid #c8c8cc; border-radius: 50%; color: #8a8a8a; font-size: 16px; line-height: 1; background: #ffffff; }
+/* Utfälld: redigeringskortet */
+.tp-card { border: 1px solid #d6d6dc; border-radius: 4px; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.tp-card-head { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: #efeff2; border-bottom: 1px solid #d6d6dc; border-radius: 4px 4px 0 0; font-size: 11px; font-weight: 500; cursor: pointer; user-select: none; }
+.tp-card-head:hover, .tp-card-head:focus-visible { background: #e6e6ea; outline: none; }
+.tp-type { margin-left: auto; font-size: 10px; color: #8a8a8a; font-weight: 500; }
+.tp-body { padding: 6px 16px 18px; }
+.tp-sec { margin-top: 16px; }
+.tp-label { font-size: 13px; font-weight: 500; color: #222222; }
+.tp-label-row { display: flex; justify-content: space-between; align-items: baseline; }
+.tp-link { font-size: 11px; color: var(--tp-accent); }
+.tp-help { font-size: 10px; font-style: italic; color: #666666; margin: 2px 0 8px; }
+/* Skrivskyddade fält i mall-underlaget (Fråga, Frågans ID, svarsalternativ m.fl.) – höjden styrs av min-height + padding */
+.tp-field { box-sizing: border-box; border: 1px solid #c8c8cc; border-radius: 4px; padding: 5px 9px; min-height: 28px; background: #ffffff; word-break: break-word; white-space: pre-wrap; }
+.tp-ph { color: #9a9a9a; font-style: italic; }
+.tp-area { min-height: 90px; }
+.tp-upload { display: inline-flex; align-items: center; gap: 10px; padding: 6px 14px 6px 8px; border: 1px solid #c8c8cc; border-radius: 4px; font-size: 11px; }
+.tp-upload-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border: 1px solid var(--tp-accent); border-radius: 3px; font-size: 11px; }
+.tp-opt { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+.tp-radio { flex-shrink: 0; width: 18px; height: 18px; margin-top: 6px; border: 1px solid #b8b8bc; border-radius: 50%; background: #ffffff; }
+.tp-opt-main { flex: 1; min-width: 0; }
+.tp-opt-target { font-size: 10px; color: #666666; margin-top: 2px; }
+.tp-opt-icons { flex-shrink: 0; margin-top: 7px; font-size: 11px; color: #9a9a9a; letter-spacing: 2px; }
+.tp-check { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; }
+.tp-checkbox { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border: 1px solid var(--tp-accent); border-radius: 3px; color: var(--tp-accent); font-size: 11px; font-weight: 700; }
+.tp-select { display: flex; align-items: center; max-width: 280px; margin-bottom: 4px; border: 1px solid #c8c8cc; border-radius: 4px; background: #ffffff; }
+.tp-select-val { flex: 1; min-width: 0; padding: 7px 9px; word-break: break-word; }
+.tp-select-arrow { flex-shrink: 0; align-self: stretch; display: flex; align-items: center; padding: 0 9px; border-left: 1px solid #e0e0e4; color: #9a9a9a; }
+.tp-parent-ans { color: #666666; }
+.tp-muted, .tp-empty { color: #666666; font-style: italic; }
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ── ZOOM CONTROLS ── */
+#zoom-ctrls {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  bottom: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  z-index: 100;
+}
+
+#zoom-level { text-align: center; font-family: var(--font-mono); font-size: 9px; color: var(--text-dim); padding: 2px 0; }
+
+/* ── LEGEND ── */
+#legend { position: absolute; bottom: 14px; right: 14px; max-width: 400px; background: #eeeeee; border: 1px solid #cccccc; border-radius: 8px; padding: 10px 12px; backdrop-filter: blur(12px); z-index: 100; }
+#legend-min-btn { position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; padding: 0; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--text-dim); font-size: 13px; line-height: 1; cursor: pointer; }
+#legend-min-btn:hover, #legend-min-btn:focus-visible { border-color: #bbbbbb; background: #e0e0e0; }
+#legend-restore { display: none; padding: 0; border: none; background: transparent; color: var(--text-mid); font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; }
+#legend.minimized { padding: 6px 10px; cursor: pointer; }
+#legend.minimized:hover { background: #e2e2e2; }
+#legend.minimized #legend-content,
+#legend.minimized #legend-min-btn { display: none; }
+#legend.minimized #legend-restore { display: block; }
+#legend-content { padding-right: 14px; max-height: 60vh; overflow-y: auto; }
+/* Hjälptexten */
+.help-h { margin: 10px 0 3px; font-size: 11.5px; font-weight: 600; color: #222222; }
+.help-list { margin: 0; padding-left: 16px; font-size: 11px; line-height: 1.45; color: var(--text-mid); }
+.help-list li { margin-bottom: 3px; }
+.help-list b { font-weight: 600; }
+.help-warn { display: inline-flex; align-items: center; justify-content: center; width: 13px; height: 13px; border-radius: 50%; background: #d93025; color: #ffffff; font-size: 9px; font-weight: 700; vertical-align: 1px; }
+#legend p { font-family: var(--font-head); font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #1a3a7a; margin-bottom: 7px; }
+.li { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; font-size: 10.5px; color: var(--text-mid); }
+.li:last-child { margin-bottom: 0; }
+.li-dot { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
+.li-hint { font-size: 9px; color: var(--text-dim); margin-left: auto; padding-left: 8px; font-family: var(--font-mono); }
+
+/* ── TOAST ── */
+#toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(16px); background: var(--surface2); border: 1px solid #ef4444; color: #ef4444; padding: 7px 15px; border-radius: 6px; font-size: 11.5px; opacity: 0; transition: opacity 0.18s, transform 0.18s; pointer-events: none; z-index: 9999; font-family: var(--font-ui); font-weight: 500; white-space: nowrap; }
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+#toast.ok { border-color: #22c55e; color: #22c55e; }
+
+/* ── CONNECTING INDICATOR ── */
+#conn-indicator { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(79,142,247,0.15); border: 1px solid rgba(79,142,247,0.5); color: #7ab8ff; padding: 5px 14px; border-radius: 20px; font-size: 11px; font-weight: 500; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 100; white-space: nowrap; font-family: var(--font-ui); }
+#conn-indicator.visible { opacity: 1; }
+.ci-short { display: none; }
+@media (max-width: 640px) {
+  .ci-long  { display: none; }
+  .ci-short { display: inline; }
+  #conn-indicator { font-size: 12px; padding: 7px 16px; top: 8px; }
+}
+
+.case-badge { position: absolute; top: 7px; left: 14px; font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--opt-color); opacity: 0.6; letter-spacing: 0.01em; transition: opacity 0.2s; }
+.card:hover .case-badge { opacity: 1; }
+.case-badge.unset { color: var(--text-dim); opacity: 0.35; }
+
+.tk-kw   { color: #7dd3fc; font-weight: 600; }
+.tk-fn   { color: #67e8f9; }
+.tk-var  { color: #fde68a; }
+.tk-str  { color: #86efac; }
+.tk-num  { color: #fb923c; }
+.tk-type { color: #c4b5fd; }
+.tk-cmt  { color: #3a3a5c; font-style: italic; }
+
+.hidden { display:none !important; }
+
+/* ══════════════════════════════════════════════════════════
+   MOBILE / TOUCH – Google Pixel 10 Pro XL (412 × 915 css px)
+   Audit pass: viewport, touch targets, bottom sheets, safe areas
+   ══════════════════════════════════════════════════════════ */
+
+/* ── TOUCH TARGETS: ports are only 11 px – fingers need ≥ 44 px ── */
+.port::before {
+  content: '';
+  position: absolute;
+  inset: -16px;
+  border-radius: 50%;
+}
+
+/* ── TOUCH DEVICES: delete btn always visible (no hover) ── */
+@media (hover: none) {
+  .card-del  { display: flex !important; opacity: 0.55; }
+  /* Bigger tap area on touch */
+  .card-del  { width: 24px !important; height: 24px !important; font-size: 12px !important; right: 4px !important; top: 5px !important; }
+  .card[data-type="exit"] .card-del { top: -2px !important; right: -2px !important; }
+  .exit-badge { right: 4px !important; top: 34px !important; }
+  .case-badge { right: 4px !important; top: 34px !important; }
+  .card:hover { box-shadow: 0 0 0 1px var(--card-color), 0 0 24px var(--card-glow), inset 0 1px 0 rgba(255,255,255,.06); }
+}
+
+/* ── HEADER: compensate for notch / dynamic island ── */
+@media (max-width: 900px) {
+  #header { padding-top: calc(8px + var(--sat)); }
+}
+
+/* ── DROOLS PANEL: becomes a bottom sheet on mobile ── */
+@media (max-width: 768px) {
+  /* Pull it out of the flex row */
+  #drools-panel, #template-panel, #create-panel, #timetype-panel {
+    position: fixed !important;
+    inset: auto 0 0 0 !important;
+    width: 100%   !important;
+    height: 0     !important;
+    max-height: 92dvh;
+    border-left:   none !important;
+    border-top:    1px solid var(--border2) !important;
+    border-radius: 18px 18px 0 0 !important;
+    box-shadow:    0 -12px 48px rgba(0,0,0,.65) !important;
+    transition:    height .32s cubic-bezier(.4,0,.2,1) !important;
+    padding-bottom: var(--sab) !important;
+    z-index: 400 !important;
+    overflow: hidden !important;
+    flex-shrink: 0;
+  }
+  #drools-panel.open, #template-panel.open, #create-panel.open, #timetype-panel.open {
+    width:  100% !important;
+    height: 84dvh !important;
+  }
+
+  /* Drag-handle pill */
+  .dp-drag-handle {
+    width: 38px; height: 4px;
+    background: var(--border2);
+    border-radius: 2px;
+    margin: 10px auto 0;
+    flex-shrink: 0;
+  }
+
+  #dp-header, #tp-header, #cp-header, #ttp-header {
+    flex-direction: column;
+    align-items: stretch;
+    padding-top: 4px;
+    gap: 8px;
+  }
+  #dp-header h2, #tp-header h2, #cp-header h2, #ttp-header h2 { font-size: 13px; }
+  .dp-actions    { display: flex; gap: 6px; }
+  .dp-btn        { flex: 1 1 auto; text-align: center; padding: 8px 10px; font-size: 11px; }
+
+  #dp-stats      { flex-wrap: wrap; row-gap: 4px; }
+  #dp-output     { font-size: 10.5px; line-height: 1.7; }
+}
+
+/* Semi-transparent backdrop behind bottom sheet */
+#mobile-backdrop {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.55);
+  z-index: 399;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  cursor: pointer;
+}
+#mobile-backdrop.visible { display: block; }
+
+/* ── ZOOM CONTROLS: bigger touch targets ── */
+@media (max-width: 768px) {
+  #zoom-ctrls {
+    bottom: calc(18px + var(--sab));
+    left:   14px;
+    gap:    4px;
+  }
+  #zoom-level { font-size: 10px; padding: 3px 0; }
+}
+
+/* ── LEGEND: compact, shifted above safe area ── */
+@media (max-width: 768px) {
+  #legend {
+    bottom: calc(14px + var(--sab));
+    right: 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
+  }
+  #legend p    { font-size: 11px; margin-bottom: 5px; }
+  .li          { font-size: 9.5px; gap: 5px; margin-bottom: 4px; }
+  .li-hint     { display: none; }
+  .li-dot      { width: 6px; height: 6px; }
+}
+
+/* ── CONNECTION INDICATOR: above bottom UI on mobile ── */
+@media (max-width: 768px) {
+  #conn-indicator {
+    top: auto;
+    bottom: calc(130px + var(--sab));
+    font-size: 12px;
+    padding: 8px 16px;
+  }
+}
+
+/* ── TOAST: above safe area ── */
+@media (max-width: 768px) {
+  #toast { bottom: calc(22px + var(--sab)); }
+}
+
+/* ── PREVIEW OVERLAY: bottom-sheet style on mobile ── */
+@media (max-width: 640px) {
+  #preview-overlay {
+    padding: 0;
+    align-items: flex-end;
+    background: rgba(5,6,14,.7);
+  }
+  #preview-card {
+    border-radius: 20px 20px 0 0;
+    padding: 24px 20px calc(16px + var(--sab));
+    max-width: 100%;
+    width: 100%;
+    max-height: 92dvh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    animation: slideUp .28s cubic-bezier(.4,0,.2,1);
+  }
+  @keyframes slideUp { from { transform: translateY(40px); opacity: .6; } to { transform: none; opacity: 1; } }
+
+  .form-title   { font-size: 19px; margin-bottom: 18px; }
+  .form-opt-item { padding: 13px 15px; gap: 10px; }
+  .form-opt-item input { width: 20px; height: 20px; flex-shrink: 0; }
+  .form-opt-item span  { font-size: 15px; }
+
+  .preview-actions {
+    position: sticky;
+    bottom: 0;
+    background: linear-gradient(rgba(15,15,26,0) 0%, var(--surface) 28%);
+    padding: 20px 0 6px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .preview-actions .clear-btn { flex: 1 1 auto; text-align: center; padding: 10px; }
+}
+
+/* ── CARDS: slightly larger label text on mobile ── */
+@media (max-width: 640px) {
+  .card-label { font-size: 14px; }
+  .card-chip  { font-size: 9px; }
+}
+
+/* ── MOBILE FAB BAR ── */
+#mobile-fab-bar {
+  display: none;
+  position: fixed;
+  bottom: calc(18px + var(--sab));
+  right: 16px;
+  z-index: 300;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+#mobile-fab-bar:not(.hidden) { display: flex; }
+
+#fab-toggle {
+  width: 54px; height: 54px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1a4fd8 0%, #7c3aed 100%);
+  border: none; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 24px rgba(124,58,237,0.45), 0 1px 4px rgba(0,0,0,.5);
+  transition: transform .18s, box-shadow .18s;
+  flex-shrink: 0;
+}
+#fab-toggle:active { transform: scale(0.93); }
+#fab-toggle.open { transform: rotate(45deg); }
+
+#fab-items {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+  max-height: 0; overflow: hidden;
+  transition: max-height .28s cubic-bezier(.4,0,.2,1), opacity .22s;
+  opacity: 0;
+  pointer-events: none;
+}
+#fab-items.open {
+  max-height: 400px; opacity: 1; pointer-events: auto;
+}
+
+.fab-item {
+  display: flex; align-items: center; gap: 8px; cursor: pointer; border: none;
+  background: var(--surface);
+  border-radius: 28px;
+  padding: 9px 14px 9px 10px;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 13px; font-weight: 500;
+  box-shadow: 0 2px 12px rgba(0,0,0,.5);
+  border: 1px solid currentColor;
+  transition: background .12s, transform .1s;
+  white-space: nowrap;
+}
+.fab-item:active { transform: scale(0.96); }
+.fab-item.q   { color: var(--q-color);   } .fab-item.q:active   { background: var(--q-bg);   }
+.fab-item.opt { color: var(--opt-color); } .fab-item.opt:active { background: var(--opt-bg); }
+.fab-item.fq  { color: var(--fq-color);  } .fab-item.fq:active  { background: var(--fq-bg);  }
+.fab-item.ex  { color: var(--exit-color);} .fab-item.ex:active  { background: var(--exit-bg);}
+
+.fab-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; opacity: .8; }
+
+/* Only show FAB on touch/mobile, hide zoom controls that overlap on tiny screens */
+@media (hover: none) and (max-width: 768px) {
+  #mobile-fab-bar { display: flex; }
+  /* Move zoom controls up to not overlap FAB */
+  #zoom-ctrls { bottom: calc(80px + var(--sab)); }
+  /* Legend moves further left */
+  #legend { right: auto; left: 70px; }
+}
+/* Hide FAB on desktop */
+@media (hover: hover), (min-width: 769px) {
+  #mobile-fab-bar { display: none !important; }
+}
+#canvas-hint {
+  display: block;
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255,255,255,.88);
+  border: 1px dashed var(--border2);
+  border-radius: 14px;
+  padding: 18px 22px;
+  text-align: center;
+  color: var(--text-mid);
+  font-size: 13px;
+  line-height: 1.65;
+  max-width: 240px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  pointer-events: none;
+  z-index: 2;
+  transition: opacity .3s;
+}
+#canvas-hint .hint-icon { width: 28px; height: 28px; display: block; margin: 0 auto 8px; color: var(--q-color); }
+
+@media (hover: none) {
+  #canvas-hint { display: block; }
+  #canvas-hint.hidden { display: none !important; }
+}
+
+
+/* ── PREVIEW MODAL ── */
+#preview-overlay { position: fixed; inset: 0; background: rgba(200, 200, 234, 0.95); z-index: 10000; display: none; align-items: center; justify-content: center; flex-direction: column; padding: 20px; backdrop-filter: blur(8px); }
+#preview-overlay.open { display: flex; }
+#preview-card { width: 100%; max-width: 600px; background: var(--surface); border: 1px solid var(--border2); border-radius: 16px; padding: 30px; box-shadow: 0 20px 80px rgba(0,0,0,0.6); }
+.form-title { font-family: var(--font-head); font-size: 22px; margin-bottom: 25px; color: #fff; }
+.form-options { display: flex; flex-direction: column; gap: 12px; }
+.form-opt-item { display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 10px; cursor: pointer; transition: all 0.15s; }
+.form-opt-item:hover { border-color: var(--opt-color); background: var(--opt-bg); }
+.form-opt-item input { accent-color: var(--opt-color); width: 18px; height: 18px; cursor: pointer; }
+.form-opt-item span { font-size: 15px; color: var(--text); }
+.preview-actions { margin-top: 30px; display: flex; gap: 10px; border-top: 1px solid var(--border); padding-top: 20px;}
+/* Styla själva modal-rutan */
+dialog {
+  border: none;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  background: var(--exit-bg);
+  box-sizing: border-box;
+
+  /* Storleksändringsbar via handtaget nere till höger */
+  resize: both;
+  overflow: hidden;
+  width: 420px;
+  height: 340px;
+  min-width: 280px;
+  min-height: 260px;
+  max-width: 95vw;
+  max-height: 90vh;
+}
+/* Flex bara när dialogen är öppen – annars skulle den synas hela tiden */
+dialog[open] { display: flex; flex-direction: column; }
+dialog *, dialog *::before, dialog *::after { box-sizing: border-box; }
+
+/* Formuläret fyller dialogen; meddelandefältet tar resterande höjd */
+#modalForm { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+/* Dialogens rubrik */
+#dialogRubrik {
+  margin: -6px 0 0;             /* negativt värde = högre upp; 0 = kant i kant med dialogens padding */
+  font-family: var(--font-head);
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+#meddelande, #tidstyp {
+  margin: -6px 0 0;             /* negativt värde = högre upp; 0 = kant i kant med dialogens padding */
+  font-family: var(--font-head);
+  font-size: 12px;
+  font-weight: 500;
+  color: #111827;
+}
+
+
+.modal-field { display: flex; flex-direction: column; gap: 4px; }
+.modal-field.grow { flex: 1; min-height: 0; }
+.modal-field.grow textarea { flex: 1; min-height: 60px; resize: none; }
+.modal-field textarea,
+.modal-field input { width: 100%; font: inherit; padding: 6px 8px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Dialogknappar – kantlinje syns bara vid hover */
+.modal-actions button {
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid transparent; /* transparent så knappen inte hoppar vid hover */
+  border-radius: 6px;
+  color: var(--exit-color);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.12s;
+}
+.modal-actions button:hover,
+.modal-actions button:focus-visible {
+  border-color: var(--exit-color);
+}
+
+/* Styla den tonade bakgrunden */
+dialog::backdrop {
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px); /* Ger en snygg suddig effekt */
+}
+
+</style>
+
+<style id="exit-port-top-center">
+/* Utgångens kopplingspunkt sitter rakt ovanför cirkeln */
+.card[data-type="exit"] .card-port,
+.card[data-type="exit"] .port,
+.card[data-type="exit"] [class*="port"] {
+  left: 50% !important;
+  right: auto !important;
+  top: 0 !important;
+  bottom: auto !important;
+  transform: translate(-50%, -50%) !important;
+}
+</style>
+
+
+<style id="look-1177">
+/* ══════════════════════════════════════════════════════════
+   1177-UTSEENDE – ljust formulärbyggar-tema.
+   Lagt sist så att det skriver över reglerna ovan; ta bort
+   hela detta block för att återgå till det gamla utseendet.
+   ══════════════════════════════════════════════════════════ */
+:root {
+  --accent: #f5a623;
+  --accent-dark: #d4870a;
+  --accent-bg: #fff6e6;
+  --gray-bg: #efeff2;
+  --line: #d6d6dc;
+  --field-line: #c8c8cc;
+  --font-ui: Roboto, 'Segoe UI', Arial, sans-serif;
+  --font-head: Roboto, 'Segoe UI', Arial, sans-serif;
+
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface2: #ffffff;
+  --border: var(--line);
+  --border2: var(--field-line);
+  --text: #222222;
+  --text-mid: #222222;
+  --text-dim: #666666;
+
+  --q-color: #8a8a90;  --q-bg: #ffffff;   --q-glow: rgba(0,0,0,0.10);
+  --fq-color: #8a8a90; --fq-bg: #ffffff;  --fq-glow: rgba(0,0,0,0.10);
+  --opt-color: #8a8a90; --opt-bg: #ffffff; --opt-glow: rgba(0,0,0,0.10);
+  --exit-color: var(--accent); --exit-bg: #fff8ec; --exit-glow: rgba(245,166,35,0.18);
+}
+body { color: var(--text); font-family: var(--font-ui); }
+
+/* ── Titelrad ── */
+#appbar {
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  height: 44px; padding: 0 16px; background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.18); position: relative; z-index: 210;
+}
+.appbar-icon { width: 20px; height: 20px; color: #222222; }
+.appbar-title { font-size: 17px; font-weight: 500; color: #222222; }
+.appbar-sub { font-size: 12px; color: #8a8a8a; margin-left: 6px; }
+
+/* ── Verktygsrad ── */
+#header {
+  height: auto; min-height: 50px; padding: 4px 16px; gap: 16px;
+  background: #ffffff; border-bottom: 1px solid var(--line);
+}
+/* Flödets namn – sparas i filen som metadata.name */
+.flow-name { flex-shrink: 0; width: 220px; padding: 6px 9px; border: 1px solid var(--field-line); border-radius: 4px; background: #ffffff; color: #222222; font: inherit; font-size: 13px; font-weight: 500; }
+.flow-name::placeholder { color: #9a9a9a; font-style: italic; font-weight: 400; }
+.flow-name:hover { border-color: #a8a8ae; }
+.flow-name:focus { outline: none; border-color: var(--accent); }
+#flow-tools { flex: 1; justify-content: center; gap: 2px; flex-wrap: wrap; }
+.vsep { height: 30px; background: var(--line); margin: 0 6px; }
+.clear-btn {
+  color: var(--accent); background: transparent; border: 1px solid transparent;
+  border-radius: 4px; font-family: var(--font-ui); font-size: 11px; font-weight: 500;
+}
+.clear-btn:hover:not(:disabled), .clear-btn:focus-visible { color: var(--accent-dark); background: var(--accent-bg); border-color: transparent; }
+.clear-btn:disabled { opacity: 0.4; cursor: default; }
+.tb-btn { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 8px; min-width: 64px; white-space: nowrap; }
+.tb-icon { width: 20px; height: 20px; }
+
+
+/* ── Canvas ── */
+#canvas { background: #ffffff; }
+
+/* ── Kort ── */
+.card {
+  border: 1px solid var(--line); border-radius: 4px; background: var(--card-bg);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06); padding: 11px 13px 13px;
+}
+.card:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.12); }
+.card.dragging { box-shadow: 0 6px 24px rgba(0,0,0,0.18); }
+.card.connect-highlight { box-shadow: 0 0 0 2px var(--accent), 0 2px 10px rgba(0,0,0,0.12); }
+.card.val-error { box-shadow: 0 0 0 2px #d93025, 0 2px 10px rgba(0,0,0,0.10); }
+.card.val-warn  { box-shadow: 0 0 0 2px var(--accent), 0 2px 10px rgba(0,0,0,0.10); }
+.card.isolated { border-color: var(--line) !important; background: var(--card-bg) !important; }
+.card.isolated:hover { background: var(--card-bg) !important; box-shadow: 0 2px 10px rgba(0,0,0,0.12); }
+.card[data-type="option"] { border: 1px solid var(--field-line); border-radius: 4px; }
+
+/* Kortets rubrik blir en grå rubrikrad, som "Frågetyp: Enval" */
+.card-chip {
+  margin: -11px -13px 10px; padding: 7px 13px;
+  background: var(--gray-bg); border-bottom: 1px solid var(--line); border-radius: 4px 4px 0 0;
+  font-family: var(--font-ui); font-size: 11px; font-weight: 500;
+  letter-spacing: 0; text-transform: none; color: #222222;
+}
+.card-label { font-size: 14px; font-weight: 500; }
+.card[data-type="question"] .card-label,
+.card[data-type="option"] .card-label,
+.card[data-type="followup"] .card-label,
+.card[data-type="exit"] .card-label { color: #222222; }
+.card[data-type="question"] .card-label:focus,
+.card[data-type="option"] .card-label:focus,
+.card[data-type="followup"] .card-label:focus,
+.card[data-type="exit"] .card-label:focus { color: #000000; }
+.card-label:empty::before { color: #9a9a9a; }
+
+/* ▲/▼ för att ändra svarets ordning – till vänster om ✕, syns vid hover */
+.ans-move {
+  position: absolute; top: 7px; width: 16px; height: 16px; padding: 0;
+  display: none; align-items: center; justify-content: center;
+  border: 1px solid transparent; border-radius: 3px; background: transparent;
+  color: #8a8a8a; font-size: 8px; line-height: 1; cursor: pointer;
+}
+.ans-up   { right: 44px; }
+.ans-down { right: 26px; }
+.card:hover .ans-move:not([hidden]) { display: flex; }
+.ans-move:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-bg); color: var(--accent-dark); }
+.ans-move:disabled { opacity: 0.3; cursor: default; }
+@media (hover: none) {
+  .ans-move:not([hidden]) { display: flex; width: 24px; height: 24px; top: 5px; font-size: 10px; }
+  .ans-up   { right: 60px; }
+  .ans-down { right: 32px; }
+}
+
+/* Utgångar behåller cirkelformen men får orange accent */
+.card[data-type="exit"] { border: 1px solid var(--accent); }
+.card[data-type="exit"] .card-chip {
+  margin: 0 0 4px; padding: 0; background: none; border: 0; border-radius: 0;
+  font-size: 10px; color: var(--accent-dark);
+}
+.card[data-type="exit"] .card-label { font-size: 15px; }
+.card[data-type="exit"] .properties-btn { color: var(--accent-dark); }
+
+.card-del { color: #9a9a9a; }
+.card-del:hover { background: #fde8e6; color: #d93025; }
+
+/* Kopplingspunkter */
+.port { background: #b8b8bc; border: 2px solid #ffffff; }
+.port:hover, .port.active { background: var(--accent); box-shadow: none; }
+
+/* Kopplingar: tunna grå linjer (CSS går före SVG-attributen) */
+#svg-layer path { stroke: #a8a8ae; }
+#svg-layer path.conn-line { stroke-width: 2.5px; opacity: 1; pointer-events: none; }
+#svg-layer path.conn-line.hover { stroke: var(--accent); }
+#svg-layer path.conn-hit { stroke: transparent; stroke-width: 16px; stroke-linecap: round; pointer-events: stroke; cursor: pointer; }
+#svg-layer path.temp-line { stroke: var(--accent); }
+#svg-layer marker polygon { fill: #a8a8ae; }
+
+/* ── Zoom, hjälpruta, tips ── */
+/* Zoomknapparna – samma knapptyp som verktygsraden, i en vit ruta ovanpå canvas */
+#zoom-ctrls { gap: 2px; padding: 4px; background: #ffffff; border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+#zoom-ctrls .tb-btn { min-width: 72px; }
+.zoom-sep { height: 1px; margin: 4px 6px; background: var(--line); }
+#zoom-level { font-family: var(--font-ui); font-size: 10px; color: #666666; padding: 2px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 0 6px; }
+#legend { background: var(--gray-bg); border-color: var(--line); border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+#legend.minimized:hover { background: #e6e6ea; }
+#legend p { font-family: var(--font-ui); }
+#canvas-hint { border-color: var(--field-line); border-radius: 4px; color: #222222; }
+#canvas-hint .hint-icon { color: var(--accent); }
+#conn-indicator { background: var(--accent-bg); border-color: var(--accent); color: var(--accent-dark); }
+#toast { background: #ffffff; border-color: #d93025; color: #d93025; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+  font-size: 15px; padding: 12px 22px; border-width: 1.5px; bottom: 32px; max-width: min(640px, calc(100vw - 32px)); white-space: normal; text-align: center; line-height: 1.4; }
+#toast.ok { border-color: #1e8e3e; color: #1e8e3e; }
+#exitTooltip { border-color: var(--line); border-radius: 4px; color: #222222; }
+#exitTooltip .tt-title { color: #222222; }
+::-webkit-scrollbar-thumb { background: #c8c8cc; }
+
+/* ── Sidopaneler ── */
+#drools-panel, #template-panel, #create-panel, #timetype-panel { background: #ffffff; border-left: 1px solid var(--line); box-shadow: -2px 0 6px rgba(0,0,0,0.06); }
+#dp-header, #tp-header, #cp-header, #ttp-header { background: var(--gray-bg); border-bottom: 1px solid var(--line); }
+#dp-header h2, #tp-header h2, #cp-header h2, #ttp-header h2 { font-family: var(--font-ui); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; color: #222222; }
+.dp-btn { background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--accent); font-size: 11px; font-weight: 500; }
+.dp-btn:hover { color: var(--accent-dark); background: var(--accent-bg); border-color: transparent; }
+.dp-close { color: var(--accent); }
+.dp-close:hover { color: var(--accent-dark); border-color: transparent; }
+#dp-stats, #dp-validation { border-bottom-color: var(--line); }
+#dp-validation h3 { font-family: var(--font-ui); letter-spacing: 0; text-transform: none; font-size: 12px; font-weight: 500; color: #222222; }
+.validation-pill { background: #ffffff; border-color: var(--field-line); color: #222222; }
+.validation-pill.err  { border-color: #f1b0aa; color: #b3261e; background: #fdecea; }
+.validation-pill.warn { border-color: #f5d49a; color: #8a5a00; background: var(--accent-bg); }
+.validation-pill.ok   { border-color: #a8d5b5; color: #1e6b34; background: #e9f5ec; }
+.validation-item { background: #ffffff; border-color: var(--line); border-radius: 4px; }
+.validation-item.err  { border-left-color: #d93025; }
+.validation-item.warn { border-left-color: var(--accent); }
+.validation-item.ok   { border-left-color: #1e8e3e; }
+#dp-output { background: #fafafb; color: #333344; }
+.tk-kw   { color: #0b57d0; }
+.tk-fn   { color: #0a7f8a; }
+.tk-var  { color: #9a5b00; }
+.tk-str  { color: #1e7a34; }
+.tk-num  { color: #c2410c; }
+.tk-type { color: #6d28d9; }
+.tk-cmt  { color: #8a8a8a; }
+#mobile-backdrop { background: rgba(0,0,0,0.35); }
+@media (max-width: 768px) {
+  #drools-panel, #template-panel, #create-panel, #timetype-panel { border-radius: 8px 8px 0 0 !important; box-shadow: 0 -4px 24px rgba(0,0,0,0.2) !important; }
+  .dp-drag-handle { background: #c8c8cc; }
+}
+
+/* ── Dialog för utgångar ── */
+dialog { background: #ffffff; border: 1px solid var(--line); border-radius: 4px; padding: 20px 22px; box-shadow: 0 6px 30px rgba(0,0,0,0.2); color: #222222; font-family: var(--font-ui); }
+dialog::backdrop { background-color: rgba(0,0,0,0.35); backdrop-filter: none; }
+#dialogRubrik { font-family: var(--font-ui); font-size: 15px; font-weight: 500; color: #222222; margin: 0 0 4px; }
+.modal-field label { font-size: 13px; font-weight: 500; color: #222222; }
+#meddelande, #tidstyp { margin: 0; font-family: var(--font-ui); font-size: 12px; font-weight: 400; color: #222222; }
+.modal-field textarea, .modal-field input { border: 1px solid var(--field-line); border-radius: 4px; padding: 7px 9px; background: #ffffff; }
+.modal-field textarea:focus, .modal-field input:focus { outline: none; border-color: var(--accent); }
+.modal-field textarea::placeholder, .modal-field input::placeholder { color: #9a9a9a; font-style: italic; }
+/* Avbryt (text) till vänster om Spara (fylld), som i formulärbyggaren */
+.modal-actions { flex-direction: row-reverse; justify-content: flex-start; gap: 12px; }
+.modal-actions button { color: var(--accent); font-weight: 500; border-radius: 4px; padding: 7px 18px; }
+.modal-actions button:hover, .modal-actions button:focus-visible { border-color: transparent; background: var(--accent-bg); }
+.modal-actions #submitBtn { background: var(--accent); color: #ffffff; min-width: 80px; }
+.modal-actions #submitBtn:hover, .modal-actions #submitBtn:focus-visible { background: var(--accent-dark); }
+
+/* ── Dialog för utgångens detaljer (som formulärbyggaren) ── */
+#exitMessageDialog { width: min(900px, 95vw); height: fit-content; min-height: 0; max-height: 90vh; overflow: auto; resize: none; padding: 22px 26px; }
+#exitMessageDialog #modalForm { gap: 0; }
+#exitMessageDialog #dialogRubrik { font-size: 16px; margin: 0 0 10px; }
+.ex-intro { margin: 0 0 10px; font-size: 13px; color: #222222; line-height: 1.45; }
+.ex-sec { margin-top: 16px; }
+.ex-label { display: block; font-size: 15px; font-weight: 500; color: #222222; }
+.ex-help { margin: 4px 0 10px; font-size: 11px; font-style: italic; color: #666666; }
+#exitMessageDialog textarea, #exitMessageDialog input[type="text"] {
+  width: 100%; margin: 0; padding: 9px 10px; border: 1px solid var(--field-line); border-radius: 4px;
+  background: #ffffff; color: #222222; font-family: var(--font-ui); font-size: 13px; font-weight: 400;
+}
+#exitMessageDialog textarea { min-height: 0; resize: vertical; line-height: 1.45; }   /* höjden styrs av rows på textrutan */
+#exitMessageDialog textarea:focus, #exitMessageDialog input[type="text"]:focus { outline: none; border-color: var(--accent); }
+#exitMessageDialog textarea::placeholder, #exitMessageDialog input::placeholder { color: #8a8a8a; font-style: normal; }
+.ex-btn-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 5fr); gap: 12px; }
+#exitMessageDialog .ex-btn-row { grid-template-columns: minmax(0, 1fr) minmax(0, 5fr) auto; }
+/* Tidstyps-id (ikryssad "Använd URL från Inställningar"): fältet är 1/5 så brett som URL-fältet, Testa direkt efter */
+#exitMessageDialog .ex-btn-row.timetype-mode { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto minmax(0, 4fr); }
+.ex-test-btn { padding: 0 16px; border: 1px solid var(--accent); border-radius: 4px; background: #ffffff; color: var(--accent-dark);
+  font-family: var(--font-ui); font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.ex-test-btn:hover, .ex-test-btn:focus-visible { background: var(--accent-bg); outline: none; }
+#exitMessageDialog input.ex-settings-url { background: #f3f3f6; color: #444444; cursor: default; }
+#exitMessageDialog input.ex-settings-url:focus { border-color: var(--field-line); }
+.ex-btn-row [hidden] { display: none !important; }
+/* Kryssrutan "Använd URL från Inställningar" */
+.ex-check { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 13px; color: #222222; cursor: pointer; }
+.ex-check-help { margin-top: -4px; }
+.ex-check-help[hidden] { display: none; }
+.ex-check input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.tp-exit .ex-check { cursor: default; }
+.tp-checkbox-sm { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border: 1px solid var(--accent); border-radius: 3px; color: var(--accent); font-size: 10px; font-weight: 700; }
+.tp-checkbox-sm.off { border-color: #b8b8bc; color: transparent; }
+.ex-error { margin-top: 16px; padding: 9px 12px; border: 1px solid #f1b0aa; border-left: 3px solid #d93025; border-radius: 4px; background: #fdecea; color: #b3261e; font-size: 12px; }
+#exitMessageDialog .modal-actions { margin-top: 20px; }
+@media (max-width: 640px) { .ex-btn-row, #exitMessageDialog .ex-btn-row, #exitMessageDialog .ex-btn-row.timetype-mode { grid-template-columns: 1fr; } .ex-test-btn { padding: 9px 16px; } }
+
+/* ── Dialog för flödets globala inställningar ── */
+#settingsDialog { width: min(640px, 95vw); height: fit-content; min-height: 0; max-height: 90vh; overflow: auto; resize: none; padding: 22px 26px; }
+#settingsDialog .settings-form { display: flex; flex-direction: column; }
+#settingsRubrik { margin: 0 0 10px; font-family: var(--font-ui); font-size: 16px; font-weight: 500; color: #222222; }
+.settings-body { min-height: 80px; }
+.settings-input { box-sizing: border-box; width: 100%; padding: 9px 10px; border: 1px solid var(--field-line); border-radius: 4px;
+  background: #ffffff; color: #222222; font-family: var(--font-ui); font-size: 13px; }
+.settings-input::placeholder { color: #8a8a8a; }
+.settings-input:focus { outline: none; border-color: var(--accent); }
+#settingsDialog .modal-actions { margin-top: 20px; }
+#settingsDialog #settingsSaveBtn { background: var(--accent); color: #ffffff; min-width: 80px; }
+#settingsDialog #settingsSaveBtn:hover, #settingsDialog #settingsSaveBtn:focus-visible { background: var(--accent-dark); }
+
+/* ── Testa flöde ── */
+.result-fields { display: flex; flex-direction: column; gap: 14px; margin-top: 18px; }
+.result-label { font-size: 13px; font-weight: 500; color: #222222; margin-bottom: 4px; }
+.result-value { border: 1px solid var(--field-line); border-radius: 4px; padding: 8px 10px; background: #fafafb; font-size: 13px; color: #222222; word-break: break-word; }
+.result-value a { color: var(--accent-dark); }
+.result-url { margin-top: 2px; font-size: 11px; color: #666666; word-break: break-all; }
+.result-msg { white-space: pre-wrap; max-height: 40vh; overflow-y: auto; }
+.result-empty { color: #9a9a9a; font-style: italic; }
+#preview-overlay { background: rgba(0,0,0,0.35); backdrop-filter: none; }
+#preview-card { border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 6px 30px rgba(0,0,0,0.2); }
+.form-title { font-family: var(--font-ui); font-size: 17px; font-weight: 500; color: #222222; }
+.form-opt-item { background: #ffffff; border-color: var(--field-line); border-radius: 4px; }
+.form-opt-item:hover { border-color: var(--accent); background: var(--accent-bg); }
+.form-opt-item input { accent-color: var(--accent); }
+.form-opt-item span { color: #222222; }
+.preview-actions { border-top-color: var(--line); }
+@media (max-width: 640px) {
+  #preview-overlay { background: rgba(0,0,0,0.35); }
+  .preview-actions { background: linear-gradient(rgba(255,255,255,0) 0%, #ffffff 28%); }
+}
+
+/* ── Mobil ── */
+#fab-toggle { background: var(--accent); box-shadow: 0 3px 12px rgba(0,0,0,0.25); }
+.fab-item { background: #ffffff; color: #222222; border-color: var(--field-line); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+@media (max-width: 900px) {
+  #appbar { padding-top: var(--sat); height: calc(44px + var(--sat)); }
+  #header { padding-top: 6px; }
+  .flow-name { width: 100%; }
+  #flow-tools { justify-content: flex-start; flex-wrap: nowrap; }
+  .appbar-sub { display: none; }
+}
+</style>
+
+</head>
+<body>
+
+<div id="appbar">
+  <svg class="appbar-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3 2 12h3v8h5v-6h4v6h5v-8h3z"/></svg>
+  <span class="appbar-title">Beslutsträd</span>
+  <span class="appbar-sub">Flödeseditor för guidande formulär</span>
+</div>
+
+<div id="header">
+  <input id="flow-name" class="flow-name" type="text" maxlength="80" spellcheck="false" placeholder="Namnge flödet…" aria-label="Flödets namn" title="Flödets namn – sparas i filen vid export" oninput="setFlowName(this.value)">
+  <div id="flow-tools" class="tool-group">
+  <button class="clear-btn tb-btn" onclick="triggerImportModel()" title="Importera modell från en tidigare sparad fil"><svg class="tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg><span>Importera</span></button>
+  <button class="clear-btn tb-btn" onclick="exportModelFile()" title="Exportera modell till fil"><svg class="tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg><span>Exportera</span></button>
+  <button class="clear-btn tb-btn" onclick="clearAll()" title="Rensa allt utom första frågan"><svg class="tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span>Rensa allt</span></button>
+  <button class="clear-btn tb-btn" onclick="openSettingsDialog()" title="Generella inställningar för flödet och efterkommande hänvisning."><svg class="tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Inställningar</span></button>
+  <div class="vsep"></div>
+  <button class="clear-btn tb-btn" onclick="addCardCenter('option')" title="Lägg till svarsalternativ"><svg class="tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg><span>Nytt svar</span></button>
+  <button class="clear-btn tb-btn" onclick="addCardCenter('followup')" title="Lägg till följdfråga"><svg class="tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4v9a4 4 0 0 0 4 4h8"/><path d="M15 14l3 3-3 3"/></svg><span>Ny följdfråga</span></button>
+  <button class="clear-btn tb-btn" onclick="addCardCenter('exit')" title="Lägg till utgång (max 30)"><svg class="tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4H5v16h4"/><path d="M14 8l4 4-4 4M18 12H9"/></svg><span>Ny utgång</span></button>
+  <div class="vsep"></div>
+  <button class="clear-btn tb-btn" onclick="printFlow()" title="Skriv ut hela flödet"><svg class="tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg><span>Skriv ut</span></button>
+  <button class="clear-btn tb-btn" onclick="openTimeTypePanel()" title="Tabell över utgångarnas tidstyps-id"><svg class="tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M10 4v16"/></svg><span>Tabell tidstyper</span></button>
+  <div class="vsep"></div>
+  <button class="clear-btn tb-btn" onclick="startFlowTest()" title="Testa beslutsträdet"><svg class="tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span>Testa flöde</span></button>
+  <button class="clear-btn tb-btn" onclick="generateAndShow()" title="Generera Drools-skript"><svg class="tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg><span>Generera skript</span></button>
+  <button class="clear-btn tb-btn" onclick="openTemplatePanel()" title="Generera mall-underlag som sedan kan användas som hjälp när en mall ska designas i tjänsten Formulärhantering's design-verktyg samt när konfiguration ska läggas in i Formulärflöden"><svg class="tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg><span>Mall-underlag</span></button>
+  <button class="clear-btn tb-btn" onclick="openCreateTemplatePanel()" title="Skapar ett mall-underlag som sedan kan importeras i tjänsten Formulärhantering's design-verktyg"><svg class="tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M13 12v6M10 15h6"/></svg><span>Skapa mall</span></button>
+</div>
+</div>
+
+<div id="main">
+  <div id="canvas">
+    <div id="print-title" aria-hidden="true"></div>
+    <div id="world">
+      <svg id="svg-layer">
+        <defs id="svg-defs"></defs>
+      </svg>
+    </div>
+
+    <div id="conn-indicator">
+      <span class="ci-long">Klicka på ett kort för att slutföra kopplingen — ESC för att avbryta</span>
+      <span class="ci-short">Tryck på ett kort · ESC avbryter</span>
+    </div>
+
+    <div id="canvas-hint">
+      <svg class="hint-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 10v5M12 7.5v.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      Tryck på <strong>+ Fråga</strong> i menyn ovan för att börja.<br>
+      Nyp för att zooma · Dra för att panorera.
+    </div>
+
+    <div id="zoom-ctrls">
+      <button class="clear-btn tb-btn" onclick="doZoom(1.2)" title="Zooma in"><svg class="tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-5-5M11 8v6M8 11h6"/></svg><span>Zooma in</span></button>
+      <div id="zoom-level" title="Aktuell zoomnivå">100%</div>
+      <button class="clear-btn tb-btn" onclick="doZoom(0.833)" title="Zooma ut"><svg class="tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-5-5M8 11h6"/></svg><span>Zooma ut</span></button>
+      <button class="clear-btn tb-btn" onclick="resetView()" title="Återställ vy"><svg class="tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/><circle cx="12" cy="12" r="2.5"/></svg><span>Återställ vy</span></button>
+      <div class="zoom-sep" aria-hidden="true"></div>
+      <button class="clear-btn tb-btn" id="undo-btn" disabled onclick="undoAction()" title="Ångra (Ctrl+Z)"><svg class="tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5L4 10l5 5"/><path d="M4 10h10a5 5 0 0 1 0 10h-4"/></svg><span>Ångra</span></button>
+      <button class="clear-btn tb-btn" id="redo-btn" disabled onclick="redoAction()" title="Gör om (Ctrl+Y)"><svg class="tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l5 5-5 5"/><path d="M20 10H10a5 5 0 0 0 0 10h4"/></svg><span>Gör om</span></button>
+    </div>
+
+    <div id="legend" onclick="if (this.classList.contains('minimized')) setLegendMinimized(false)">
+      <button id="legend-min-btn" title="Minimera" aria-label="Minimera informationsrutan" onclick="event.stopPropagation(); setLegendMinimized(true)">–</button>
+      <button id="legend-restore" title="Visa information" aria-label="Visa informationsrutan">ⓘ Hjälp</button>
+      <div id="legend-content">
+        <p>Hjälp</p>
+
+        <div class="help-h">Bygg flödet</div>
+        <ul class="help-list">
+          <li>Första frågan läggs ut automatiskt. Klicka på texten i ett kort för att skriva.</li>
+          <li>Lägg till kort med <b>Nytt svar</b>, <b>Ny följdfråga</b> och <b>Ny utgång</b>.</li>
+          <li>Koppla ihop korten från den nedre punkten på ett kort till nästa kort: Fråga → Svar → Följdfråga eller Utgång.</li>
+          <li>Ge varje fråga minst två svar. Ändra svarens ordning med ▲ ▼ på svarskortet.</li>
+          <li>Ta bort ett kort med ✕. Ta bort en koppling genom att klicka på pilen.</li>
+        </ul>
+
+        <div class="help-h">Utgångar</div>
+        <ul class="help-list">
+          <li>Utgångens värde är ett heltal 0–30.</li>
+          <li>Klicka på ✎ för att ange informationstext och knappar. Hovra över ✎ för att se uppgifterna.</li>
+          <li>Ett rött <span class="help-warn">!</span> betyder att uppgifter saknas.</li>
+        </ul>
+
+        <div class="help-h">Kontrollera och skapa</div>
+        <ul class="help-list">
+          <li><b>Testa flöde</b> – klicka dig igenom flödet som en invånare.</li>
+          <li><b>Generera skript</b> – visar Drools-skriptet och eventuella fel i flödet.</li>
+          <li><b>Mall-underlag</b> – frågor och utgångar som i formulärbyggaren. Kan skrivas ut.</li>
+          <li><b>Skapa mall</b> – laddar ner formulärmallen (JSON) med skriptet.</li>
+        </ul>
+
+        <div class="help-h">Spara och skriv ut</div>
+        <ul class="help-list">
+          <li>Namnge flödet i fältet uppe till vänster.</li>
+          <li><b>Exportera</b> sparar flödet till en fil, <b>Importera</b> öppnar en sparad fil.</li>
+          <li><b>Skriv ut</b> skriver ut hela flödet på en sida.</li>
+        </ul>
+
+        <div class="help-h">Tips</div>
+        <ul class="help-list">
+          <li>Ctrl+Z ångrar · Ctrl+Y gör om.</li>
+          <li>Zooma med mushjulet eller + −.</li>
+          <li>Dra i bakgrunden med höger musknapp för att flytta vyn.</li>
+        </ul>
+
+        <div class="help-h">Importera · Exportera</div>
+        <ul class="help-list">
+          <li>Importera en tidigare sparad projektfil.</li>
+          <li>Exportera projektfilen för att ha en backup eller för att fortsätta senare</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div id="drools-panel">
+    <div class="panel-resize" title="Dra för att ändra bredd – dubbelklicka för standardbredd"></div>
+    <div id="dp-header">
+      <div class="dp-drag-handle" aria-hidden="true"></div>
+      <h2>Drools-skript för guidande formulär</h2>
+      <div class="dp-actions">
+        <button class="dp-btn" onclick="copyDrools()">Kopiera</button>
+        <button class="dp-btn dp-close" onclick="closePanel()">✕ Stäng</button>
+      </div>
+    </div>
+    <div id="dp-stats"></div>
+    <div id="dp-validation"></div>
+    <div id="dp-output"></div>
+  </div>
+
+  <div id="template-panel">
+    <div class="panel-resize" title="Dra för att ändra bredd – dubbelklicka för standardbredd"></div>
+    <div id="tp-header">
+      <div class="dp-drag-handle" aria-hidden="true"></div>
+      <h2>Mall-underlag</h2>
+      <div class="dp-actions">
+        <button class="dp-btn" onclick="printTemplateBasis()" title="Skriv ut mall-underlaget">⎙ Skriv ut</button>
+        <button class="dp-btn dp-close" onclick="closePanel()">✕ Stäng</button>
+      </div>
+    </div>
+    <div id="tp-output"></div>
+  </div>
+
+  <div id="create-panel">
+    <div class="panel-resize" title="Dra för att ändra bredd – dubbelklicka för standardbredd"></div>
+    <div id="cp-header">
+      <div class="dp-drag-handle" aria-hidden="true"></div>
+      <h2>Skapa mall</h2>
+      <div class="dp-actions">
+        <button class="dp-btn dp-close" onclick="closePanel()">✕ Stäng</button>
+      </div>
+    </div>
+    <div id="cp-output">
+      <div class="cp-sec">
+        <label class="cp-label" for="cp-name">Namn</label>
+        <div class="cp-help">Ange mallens namn. Förifylls med flödets namn.</div>
+        <input id="cp-name" class="cp-input" type="text" maxlength="80" spellcheck="false" placeholder="Ange ett namn" oninput="this.dataset.edited = '1'">
+      </div>
+      <div class="cp-actions">
+        <button id="cp-create-btn" class="cp-btn-primary" type="button" onclick="createTemplate()">Skapa mall</button>
+      </div>
+      <div id="cp-error" class="cp-error" role="alert" hidden></div>
+      <div id="cp-result" class="cp-result" hidden>
+        <div class="cp-label">Skapad mall</div>
+        <div class="cp-help">Filen har laddats ner till din mapp för Hämtade filer. Filens innehåll är:</div>
+        <pre id="cp-json" class="cp-json"></pre>
+      </div>
+    </div>
+  </div>
+
+  <div id="timetype-panel">
+    <div class="panel-resize" title="Dra för att ändra bredd – dubbelklicka för standardbredd"></div>
+    <div id="ttp-header">
+      <div class="dp-drag-handle" aria-hidden="true"></div>
+      <h2>Tabell tidstyper</h2>
+      <div class="dp-actions">
+        <button class="dp-btn" onclick="printTimeTypeTable()" title="Skriv ut tabellen">⎙ Skriv ut</button>
+        <button class="dp-btn dp-close" onclick="closePanel()">✕ Stäng</button>
+      </div>
+    </div>
+    <div id="ttp-output"></div>
+  </div>
+</div>
+
+<div id="mobile-backdrop" onclick="closePanel()" aria-hidden="true"></div>
+
+<div id="preview-overlay">
+  <div id="preview-card">
+    <div id="preview-content"></div>
+    <div class="preview-actions">
+      <button class="clear-btn" onclick="closePreview()">✕ Avbryt test</button>
+      <button id="btn-prev-back" class="clear-btn" onclick="goBackPreview()" style="margin-left:auto; display:none;">← Tillbaka</button>
+      <button class="clear-btn" onclick="startFlowTest()">↻ Börja om</button>
+    </div>
+  </div>
+</div>
+
+<div id="mobile-fab-bar" class="hidden" aria-label="Lägg till kort">
+  <button id="fab-toggle" onclick="toggleFab()" aria-label="Öppna kortmeny">
+    <svg viewBox="0 0 18 18" fill="none" width="20" height="20"><path d="M9 2v14M2 9h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  </button>
+  <div id="fab-items"></div>
+</div>
+
+<dialog id="settingsDialog" aria-labelledby="settingsRubrik">
+  <form method="dialog" class="settings-form" id="settingsForm">
+    <h5 id="settingsRubrik">Inställningar</h5>
+    <p class="ex-intro">Generella inställningar för flödet och efterkommande hänvisning.</p>
+
+    <!-- Inställningarna läggs till här -->
+    <div id="settingsBody" class="settings-body">
+      <div class="ex-sec">
+        <label class="ex-label" for="settingHsaId">HSA id</label>
+        <div class="ex-help">Ange HSA id för vårdenhet som ska erbjuda guidad tidbokning. Max 50 tecken.</div>
+        <input type="text" id="settingHsaId" class="settings-input" maxlength="50" spellcheck="false" autocomplete="off"
+               placeholder="Ange HSA id">
+      </div>
+      <div class="ex-sec">
+        <label class="ex-label" for="settingBookingUrl">URL till tidbokningstjänst</label>
+        <div class="ex-help">Adress till tidbokningstjänsten, exempelvis Tidboken. Du hittar denna länk i 1177 Personalverktyget via Ärendetyper för mottagningen. Klicka där på Hantera->Kopiera länk för ärendetypen (tidbokningstjänsten måste således ha delats ut på mottagningen).</div>
+        <input type="text" id="settingBookingUrl" class="settings-input" maxlength="2000" spellcheck="false" autocomplete="off"
+               inputmode="url" placeholder="https://tidbok.at.1177.se/make?... o s v ...">
+      </div>
+      <div class="ex-sec">
+        <label class="ex-label" for="settingCancelUrl">URL för Avbryt</label>
+        <div class="ex-help">Adress som invånaren skickas till om hen väljer att avbryta. Denna URL pekar vanligtvis tillbaka invånaren till mottagningens kontaktkort. Du hittar denna länk i så fall genom att som invånare gå till mottagningens kontaktkort och kopiera länken i webb-läsaren.</div>
+        <input type="text" id="settingCancelUrl" class="settings-input" maxlength="2000" spellcheck="false" autocomplete="off"
+               inputmode="url" placeholder="https://e-tjanster.1177.se/mvk/facilityContactCard.xhtml?hsaId=... o s v ...">
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button type="submit" id="settingsSaveBtn">Spara</button>
+      <button type="button" id="settingsCancelBtn">Avbryt</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="exitMessageDialog">
+  <form method="dialog" id="modalForm" novalidate>
+    <h5 id="dialogRubrik">Utgång</h5>
+    <p class="ex-intro" id="exIntro1">Dessa inställningar kommer att appliceras för utgång.</p>
+
+    <div class="ex-sec">
+      <label class="ex-label" for="meddelande">Informationstext</label>
+      <div class="ex-help">Texten visas i sista steget innan invånaren länkas vidare till annan URL, exempelvis Tidboken. Om ingen text anges kommer ingen text att visas. Formatering görs med markdown.</div>
+      <textarea id="meddelande" name="meddelande" rows="3"></textarea>
+    </div>
+
+    <div class="ex-sec">
+      <div class="ex-label">Primärknapp</div>
+      <div class="ex-help">Om inte knapptext och URL anges kommer knapp från "Standardflöde" att användas.</div>
+      <label class="ex-check"><input type="checkbox" id="primaryUseSettingsUrl" checked> Använd URL från Inställningar</label>
+      <div class="ex-help ex-check-help" id="primaryTimeTypeHelp">Ange endast tidstyps-id här. Tidstyps-id kommer att konkateneras till URLen du specificerat under de generella inställningarna</div>
+      <div class="ex-btn-row">
+        <input type="text" id="primaryButtonText" placeholder="Ange knapptext" aria-label="Primärknappens text">
+        <input type="text" id="tidstyp" placeholder="Ange URL för knappen" aria-label="Primärknappens URL">
+        <input type="text" id="primaryTimeTypeId" placeholder="Tidstyps-id" aria-label="Primärknappens tidstyps-id" maxlength="100" spellcheck="false">
+        <button type="button" class="ex-test-btn" id="primaryTestBtn" title="Öppna primärknappens adress i en ny flik">Testa</button>
+      </div>
+    </div>
+
+    <div class="ex-sec">
+      <div class="ex-label">Sekundärknapp</div>
+      <div class="ex-help">Om inte knapptext och URL anges kommer ingen sekundärknapp att visas.</div>
+      <label class="ex-check"><input type="checkbox" id="secondaryUseSettingsUrl" checked> Använd URL från Inställningar</label>
+      <div class="ex-btn-row">
+        <input type="text" id="secondaryButtonText" placeholder="Ange knapptext" aria-label="Sekundärknappens text">
+        <input type="text" id="secondaryButtonUrl" placeholder="Ange URL för knappen" aria-label="Sekundärknappens URL">
+        <input type="text" id="secondarySettingsUrl" class="ex-settings-url" readonly tabindex="-1"
+               placeholder="Ingen URL för Avbryt angiven under Inställningar" aria-label="URL för Avbryt från Inställningar"
+               title="Hämtad från Inställningar – URL för Avbryt">
+        <button type="button" class="ex-test-btn" id="secondaryTestBtn" title="Öppna sekundärknappens URL i en ny flik">Testa</button>
+      </div>
+    </div>
+
+    <div id="exError" class="ex-error" role="alert" hidden></div>
+
+    <!-- Knappar för att stänga eller spara -->
+    <div class="modal-actions">
+      <button id="submitBtn" type="submit" value="submit">Spara</button>
+      <button type="button" id="closeBtn">Avbryt</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast"></div>
+<input id="import-file" class="hidden" type="file" accept=".guideform">
+
+<script>
+'use strict';
+
+// ─────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────
+const MAX_EXITS = 30;
+
+const S = {
+  cards: [],          
+  conns: [],          
+  modelVersion: 1,
+  schemaVersion: 1,
+  // Flödets globala inställningar (dialogen Inställningar)
+  settings: {
+    hsaId: '',
+    bookingUrl: '',
+    cancelUrl: '',
+  },
+  metadata: {
+    name: '',
+    description: '',
+    createdAt: null,
+    updatedAt: null,
+  },
+  idCounters: {       
+    node: 1,
+    conn: 1,
+  },
+
+  scale: 1, panX: 100, panY: 60,
+  isPan: false, panSX: 0, panSY: 0, panSPX: 0, panSPY: 0,
+
+  dragId: null, dragOX: 0, dragOY: 0,
+  connFrom: null,     
+  rawDrools: '',
+  lastValidation: null,
+};
+
+function createNodeId() {
+  return `node_${String(S.idCounters.node++).padStart(6, '0')}`;
+}
+
+function createConnectionId() {
+  return `conn_${String(S.idCounters.conn++).padStart(6, '0')}`;
+}
+
+function getCardDomId(cardId) {
+  return `card_${cardId}`;
+}
+
+function findCard(cardId) {
+  return S.cards.find(c => c.id === cardId);
+}
+
+function bumpCounterFromId(id, prefix) {
+  const match = String(id || '').match(new RegExp(`^${prefix}_(\\d+)$`));
+  if (!match) return;
+  const next = Number(match[1]) + 1;
+  if (Number.isFinite(next)) {
+    if (prefix === 'node') S.idCounters.node = Math.max(S.idCounters.node, next);
+    if (prefix === 'conn') S.idCounters.conn = Math.max(S.idCounters.conn, next);
+  }
+}
+
+function normalizeModelIds() {
+  S.cards.forEach(card => {
+    if (!card.id) card.id = createNodeId();
+    bumpCounterFromId(card.id, 'node');
+  });
+  S.conns.forEach(conn => {
+    if (!conn.id) conn.id = createConnectionId();
+    bumpCounterFromId(conn.id, 'conn');
+  });
+}
+
+const APP_NAME = 'Guidande formulär';
+const APP_VERSION = '1.0';
+const STORAGE_KEY = 'guideforms.autosave.v1';
+let autosaveTimer = null;
+let autosaveErrorShown = false;
+
+// ── UNDO / REDO ──
+const MAX_UNDO = 50;
+let _undoStack = [];
+let _redoStack = [];
+
+function _captureSnapshot() {
+  return JSON.stringify({
+    cards:   S.cards,
+    conns:   S.conns,
+    idCounters: S.idCounters,
+  });
+}
+
+function pushUndoState(snapshot = _captureSnapshot()) {
+  _undoStack.push(snapshot);
+  if (_undoStack.length > MAX_UNDO) _undoStack.shift();
+  _redoStack = [];
+  updateUndoUi();
+}
+
+function runUndoableMutation(mutator) {
+  const before = _captureSnapshot();
+  const result = mutator();
+  const after = _captureSnapshot();
+  if (after !== before) pushUndoState(before);
+  return result;
+}
+
+function _applySnapshot(snap) {
+  const data = JSON.parse(snap);
+  
+  clearCanvasDom();
+  S.cards       = data.cards;
+  S.conns       = data.conns;
+  S.idCounters  = data.idCounters;
+  mountAllCards();
+  applyTX();
+  redraw();
+  renderValidation(validateModel());
+  scheduleAutosave();
+  updateUndoUi();
+  refreshTimeTypeTableIfOpen();
+  updateCanvasHint();
+  buildFabItems();
+}
+
+function undoAction() {
+  if (_undoStack.length === 0) 
+  { 
+    toast('Inget att ångra'); 
+    return; 
+  }
+  _redoStack.push(_captureSnapshot());
+  _applySnapshot(_undoStack.pop());
+  toast('Ångrade åtgärd', true);
+}
+
+function redoAction() 
+{
+  if (_redoStack.length === 0) 
+  { 
+    toast('Det finns inget att göra om'); 
+    return; }
+  _undoStack.push(_captureSnapshot());
+  _applySnapshot(_redoStack.pop());
+  toast('Gjorde om åtgärd', true);
+}
+
+function updateUndoUi() 
+{
+  const u = document.getElementById('undo-btn');
+  const r = document.getElementById('redo-btn');
+  if (u) u.disabled = _undoStack.length === 0;
+  if (r) r.disabled = _redoStack.length === 0;
+}
+
+function stampModelUpdated() 
+{
+  if (!S.metadata.createdAt) 
+    S.metadata.createdAt = new Date().toISOString();
+
+  S.metadata.updatedAt = new Date().toISOString();
+}
+
+function clonePlain(value) 
+{
+  return JSON.parse(JSON.stringify(value));
+}
+
+function serializeModel() 
+{
+  stampModelUpdated();
+  return {
+    app: APP_NAME,
+    appVersion: APP_VERSION,
+    schemaVersion: S.schemaVersion,
+    modelVersion: S.modelVersion,
+    mode: 'flow',
+    answerOrder: 'manual',
+    settings: clonePlain(S.settings),
+    metadata: clonePlain(S.metadata),
+    counters: clonePlain(S.idCounters),
+    viewport: {
+      scale: S.scale,
+      panX: S.panX,
+      panY: S.panY,
+    },
+    nodes: clonePlain(S.cards),
+    connections: clonePlain(S.conns),
+  };
+}
+
+function isPlainObject(value) 
+{
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function coerceFiniteNumber(value, fallback = 0) 
+{
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function pathExistsInConnections(connections, startId, targetId) 
+{
+  const queue = [startId];
+  const seen = new Set();
+  while (queue.length) 
+  {
+    const id = queue.shift();
+    if (id === targetId) 
+      return true;
+    if (seen.has(id)) 
+      continue;
+    seen.add(id);
+    connections.filter(conn => conn.from === id).forEach(conn => queue.push(conn.to));
+  }
+  return false;
+}
+
+function validateImportedConnectionSemantics(model) 
+{
+  const cardsById = Object.fromEntries(model.nodes.map(card => [card.id, card]));
+  const valid = VALID_FLOW;
+  const pairIds = new Set();
+  const outgoingCount = {};
+  const incomingCount = {};
+
+  model.connections.forEach(conn => {
+    const fromCard = cardsById[conn.from];
+    const toCard = cardsById[conn.to];
+    const pairKey = `${conn.from}->${conn.to}`;
+    if (pairIds.has(pairKey)) throw new Error(`Dubblerad koppling mellan samma kort: ${pairKey}`);
+    pairIds.add(pairKey);
+    if (!(valid[fromCard.type] || []).includes(toCard.type)) 
+    {
+      throw new Error(`Ogiltig koppling i import: ${CARD_CFG[fromCard.type].chip} → ${CARD_CFG[toCard.type].chip}`);
+    }
+    outgoingCount[conn.from] = (outgoingCount[conn.from] || 0) + 1;
+    incomingCount[conn.to] = (incomingCount[conn.to] || 0) + 1;
+  });
+
+  model.nodes.filter(card => card.type === 'option').forEach(card => {
+      if ((outgoingCount[card.id] || 0) > 1) throw new Error(`Alternativet "${card.label || card.id}" har fler än en utgående koppling.`);
+    });
+  
+
+  model.connections.forEach(conn => {
+    const withoutCurrent = model.connections.filter(other => other.id !== conn.id);
+    if (pathExistsInConnections(withoutCurrent, conn.to, conn.from)) {
+      throw new Error(`Kopplingen ${conn.id} skulle skapa en cykel.`);
+    }
+  });
+}
+
+function validateNormalizedImport(model) 
+{
+  const nodeIds = new Set();
+
+  if (!Array.isArray(model.nodes)) throw new Error('Modellen saknar en giltig nodlista.');
+  if (!Array.isArray(model.connections)) throw new Error('Modellen saknar en giltig kopplingslista.');
+
+  model.nodes.forEach(card => 
+  {
+    if (!CARD_CFG[card.type]) throw new Error(`Okänd korttyp i import: ${card.type}`);
+    if (!card.id) throw new Error('Ett kort saknar id.');
+    if (nodeIds.has(card.id)) throw new Error(`Dubblerat kort-id i import: ${card.id}`);
+    nodeIds.add(card.id);
+  });
+
+  const connIds = new Set();
+  model.connections.forEach(conn => {
+    if (!conn.id) throw new Error('En koppling saknar id.');
+    if (connIds.has(conn.id)) throw new Error(`Dubblerat kopplings-id i import: ${conn.id}`);
+    connIds.add(conn.id);
+    if (!nodeIds.has(conn.from) || !nodeIds.has(conn.to)) {
+      throw new Error(`Kopplingen ${conn.id} pekar på kort som inte finns.`);
+    }
+    if (conn.from === conn.to) throw new Error(`Kopplingen ${conn.id} pekar från ett kort till sig själv.`);
+  });
+
+  validateImportedConnectionSemantics(model);
+
+  if (model.nodes.filter(card => card.type === 'exit').length > MAX_EXITS) 
+  {
+    throw new Error('Flödet får maximalt innehålla ${MAX_EXITS} utgångar.');
+  }
+
+  return model;
+}
+
+function normalizeImportedModel(raw) 
+{
+  const model = raw && typeof raw === 'object' ? raw : {};
+
+  const nodes = Array.isArray(model.nodes) ? model.nodes : (Array.isArray(model.cards) ? model.cards : []);
+  const connections = Array.isArray(model.connections) ? model.connections : (Array.isArray(model.conns) ? model.conns : []);
+  const normalized = {
+    app: model.app || APP_NAME,
+    schemaVersion: Number(model.schemaVersion) || 1,
+    modelVersion: Number(model.modelVersion) || 1,
+    settings: {
+      hsaId: String(model.settings?.hsaId || '').slice(0, HSA_ID_MAX),
+      bookingUrl: String(model.settings?.bookingUrl || '').slice(0, BOOKING_URL_MAX),
+      cancelUrl: String(model.settings?.cancelUrl || '').slice(0, CANCEL_URL_MAX),
+    },
+    metadata: {
+      name: model.metadata?.name === 'Namnlös modell' ? '' : String(model.metadata?.name || ''),
+      description: String(model.metadata?.description || ''),
+      createdAt: model.metadata?.createdAt || null,
+      updatedAt: model.metadata?.updatedAt || null,
+    },
+    counters: {
+      node: Math.max(1, Number(model.counters?.node) || 1),
+      conn: Math.max(1, Number(model.counters?.conn) || 1),
+    },
+    viewport: {
+      scale: Math.max(0.15, Math.min(4, Number(model.viewport?.scale) || 1)),
+      panX: Number(model.viewport?.panX) || 100,
+      panY: Number(model.viewport?.panY) || 60,
+    },
+    nodes: nodes.map((card, idx) => {
+      const type = String(card?.type || 'question');
+      return {
+        id: String(card?.id || `node_import_${idx + 1}`),
+        type,
+        x: coerceFiniteNumber(card?.x, 0),
+        y: coerceFiniteNumber(card?.y, 0),
+        label: String(card?.label || ''),
+        exitNum: card?.exitNum ?? null,
+        meddelande: String(card?.meddelande || ''),
+        tidstyp: String(card?.tidstyp || ''),
+        primaryButtonText: String(card?.primaryButtonText || ''),
+        secondaryButtonText: String(card?.secondaryButtonText || ''),
+        secondaryButtonUrl: String(card?.secondaryButtonUrl || ''),
+        // Äldre filer: kryssrutan är ikryssad om knappen inte redan har en egen URL
+        primaryUseSettingsUrl: typeof card?.primaryUseSettingsUrl === 'boolean' ? card.primaryUseSettingsUrl : !String(card?.tidstyp || '').trim(),
+        primaryTimeTypeId: String(card?.primaryTimeTypeId || ''),
+        comment: String(card?.comment || '').slice(0, 500),
+        secondaryUseSettingsUrl: typeof card?.secondaryUseSettingsUrl === 'boolean' ? card.secondaryUseSettingsUrl : !String(card?.secondaryButtonUrl || '').trim(),
+      };
+    }),
+    connections: connections.map((conn, idx) => ({
+      id: String(conn?.id || `conn_import_${idx + 1}`),
+      from: String(conn?.from || ''),
+      to: String(conn?.to || ''),
+    })).filter(conn => conn.from && conn.to),
+  };
+  return validateNormalizedImport(normalized);
+}
+
+function clearCanvasDom() 
+{
+  document.querySelectorAll('#world .card').forEach(el => el.remove());
+}
+
+function mountAllCards() 
+{
+  S.cards.forEach(card => mountCard(card));
+}
+
+function applyLoadedModel(rawModel, opts = {}) 
+{
+  const model = normalizeImportedModel(rawModel);
+  clearCanvasDom();
+
+  S.modelVersion = model.modelVersion;
+  S.schemaVersion = model.schemaVersion;
+  S.metadata = model.metadata;
+  S.settings = model.settings;
+  updateFlowNameUi();
+  S.idCounters = model.counters;
+  S.cards = model.nodes;
+  S.conns = model.connections;
+  S.scale = model.viewport.scale;
+  S.panX = model.viewport.panX;
+  S.panY = model.viewport.panY;
+  _undoStack = [];
+  _redoStack = [];
+
+  normalizeModelIds();
+  if (rawModel?.answerOrder !== 'manual') migrateAnswerOrder();
+  mountAllCards();
+  applyTX();
+  redraw();
+  renderValidation(validateModel());
+  updateAutosaveUi();
+  updateCanvasHint();
+  buildFabItems();
+  refreshTimeTypeTableIfOpen();
+  if (!opts.skipAutosave) saveAutosaveNow();
+}
+
+// Flödets namn i headern ↔ S.metadata.name
+function setFlowName(value)
+{
+  S.metadata.name = String(value || '').trim();
+  scheduleAutosave();
+}
+
+function updateFlowNameUi()
+{
+  const input = document.getElementById('flow-name');
+  if (input && document.activeElement !== input) input.value = S.metadata.name || '';
+}
+
+function exportModelFile()
+{
+  // Varna om flödet saknar namn – avbryter användaren flyttas fokus till namnfältet
+  if (!String(S.metadata.name || '').trim() &&
+      !confirm('Flödet har inte fått något namn.\n\nVill du exportera ändå? Välj Avbryt för att ange ett namn först.'))
+  {
+    document.getElementById('flow-name')?.focus();
+    return;
+  }
+
+  const data = serializeModel();
+  const safeName = (data.metadata?.name || 'guideforms-model').replace(/[åä]/g, 'a').replace(/ö/g, 'o').replace(/[ÅÄ]/g, 'A').replace(/Ö/g, 'O').replace(/[^a-z0-9-_]+/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'guideforms-model';
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${safeName}.guideform`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  toast('Modellen sparades i guideform-format', true);
+}
+
+function triggerImportModel() 
+{
+  document.getElementById('import-file')?.click();
+}
+
+function importModelFromFile(file) 
+{
+  if (!file) 
+    return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const raw = JSON.parse(String(reader.result || '{}'));
+      applyLoadedModel(raw);
+      toast('Modellen laddades', true);
+    } catch (err) {
+      console.error(err);
+      toast('Filen kunde inte läsas som giltig Guideform-modell');
+    }
+  };
+  reader.onerror = () => toast('Det gick inte att läsa filen');
+  reader.readAsText(file, 'utf-8');
+}
+
+function saveAutosaveNow() 
+{
+  try 
+  {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeModel()));
+    autosaveErrorShown = false;
+    updateAutosaveUi();
+  } 
+  catch (err) 
+  {
+    console.error(err);
+    if (!autosaveErrorShown) 
+    {
+      autosaveErrorShown = true;
+      toast('Autosparning misslyckades. Exportera modellen manuellt.');
+    }
+  }
+}
+
+function scheduleAutosave() 
+{
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(saveAutosaveNow, 250);
+}
+
+function loadAutosavedModel() 
+{
+  try 
+  {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } 
+  catch (err) 
+  {
+    console.error(err);
+    return null;
+  }
+}
+
+function hasAutosavedModel() 
+{
+  return !!loadAutosavedModel();
+}
+
+function restoreAutosavedModel() 
+{
+  const raw = loadAutosavedModel();
+  if (!raw) 
+  {
+    toast('Ingen autosparad modell hittades');
+    updateAutosaveUi();
+    return;
+  }
+  try 
+  {
+    applyLoadedModel(raw, { skipAutosave: true });
+    toast('Autosparad modell återställd', true);
+  } 
+  catch (err) 
+  {
+    console.error(err);
+    toast('Autosparad modell är ogiltig. Ladda en exporterad guideform-fil istället.');
+  }
+}
+
+function updateAutosaveUi() 
+{
+  const btn = document.getElementById('restore-autosave-btn');
+  if (!btn) 
+    return;
+  btn.classList.toggle('hidden', !hasAutosavedModel());
+}
+
+// 
+const CARD_CFG = {
+  question:     { chip: 'FRÅGA',            placeholder: 'Frågans text…',          w: 250, hasIn: false, hasOut: true  },
+  option:       { chip: 'Svar',             placeholder: 'Svarsalternativ',         w: 180, hasIn: true,  hasOut: true  },
+  followup:     { chip: 'FÖLJDFRÅGA',       placeholder: 'Följdfråga…',             w: 220, hasIn: true,  hasOut: true  },
+  exit:         { chip: 'UTGÅNG',           placeholder: 'Beteckning…',             w: 162, hasIn: true,  hasOut: false },
+};
+
+// Definition om vad tillåter objektet för efterförljande objekt
+const VALID_FLOW = {
+  question: ['option'],
+  option:   ['followup', 'exit'],
+  followup: ['option'],
+  exit:     [],
+};
+
+function validMap() 
+{ 
+  return VALID_FLOW;
+}
+
+const CONN_COLORS = 
+{
+  question: { stroke: '#4f8ef7', marker: 'mk-q'  },
+  option:   { stroke: '#b06ef7', marker: 'mk-opt' },
+  followup: { stroke: '#22d3c8', marker: 'mk-fq'  },
+  exit:         { stroke: '#ffb347', marker: 'mk-ex'  },
+};
+
+const $canvas = () => document.getElementById('canvas');
+
+function toWorld(cx, cy) 
+{
+  const r = $canvas().getBoundingClientRect();
+  return { x: (cx - r.left - S.panX) / S.scale, y: (cy - r.top - S.panY) / S.scale };
+}
+
+function applyTX() 
+{
+  const w = document.getElementById('world');
+  w.style.transform = `translate(${S.panX}px,${S.panY}px) scale(${S.scale})`;
+  document.getElementById('zoom-level').textContent = Math.round(S.scale * 100) + '%';
+}
+
+function resetViewportForDevice() 
+{
+  if (isMobile()) 
+  {
+    S.scale = 0.72;
+    S.panX  = 24;
+    S.panY  = 28;
+  } 
+  else 
+  {
+    S.scale = 1;
+    S.panX  = 100;
+    S.panY  = 60;
+  }
+  applyTX();
+}
+
+function exitCount() { return S.cards.filter(c => c.type === 'exit').length; }
+function nextExitNum() {
+  const used = new Set(S.cards.filter(c => c.type === 'exit').map(c => c.exitNum));
+  for (let i = 1; i <= MAX_EXITS; i++) if (!used.has(i)) return i;
+  return null;
+}
+
+function addCard(type, x, y, label) {
+  const cfg = CARD_CFG[type];
+  if (!cfg) 
+  { 
+    toast('Okänd korttyp'); return null; 
+  }
+
+  if (type === 'exit') 
+  { 
+    if (exitCount() >= MAX_EXITS) 
+    { 
+      toast('Maximalt ${MAX_EXITS} utgångar är tillåtna'); return null; 
+    } 
+  }
+
+  let card = null;
+  runUndoableMutation(() => {
+    const en = type === 'exit' ? nextExitNum() : null;
+    const baseLabel = type === 'exit' ? String(en ?? '') : cfg.chip.charAt(0) + cfg.chip.slice(1).toLowerCase();
+    card = { id: createNodeId(), type, x, y, label: label !== undefined ? label : baseLabel, exitNum: en, meddelande: '', tidstyp: '', primaryButtonText: '', secondaryButtonText: '', secondaryButtonUrl: '', primaryUseSettingsUrl: true, primaryTimeTypeId: '', secondaryUseSettingsUrl: true, comment: '' };
+    S.cards.push(card);
+  });
+
+  if (!card) 
+    return null;
+  mountCard(card);
+  scheduleAutosave();
+  updateCanvasHint();
+  return card;
+}
+
+function addCardCenter(type) {
+  if (!CARD_CFG[type]) { toast('Okänd korttyp'); return; }
+  const c = $canvas(), r = c.getBoundingClientRect();
+  const w = toWorld(r.left + r.width / 2, r.top + r.height / 2);
+  const jitter = (Math.random() - 0.5) * 80;
+  addCard(type, w.x - CARD_CFG[type].w / 2 + jitter, w.y - 40 + jitter);
+}
+
+function mountCard(card) 
+{
+  const cfg = CARD_CFG[card.type];
+  const defaultChipLabel = card.type === 'question' || card.type === 'followup'
+    ? questionIndexLabel(card.id)
+    : cfg.chip;
+  const el = document.createElement('div');
+  el.className = 'card'; el.id = getCardDomId(card.id); el.dataset.id = card.id; el.dataset.type = card.type;
+  el.style.cssText = `left:${card.x}px;top:${card.y}px;width:${cfg.w}px;`;
+
+  const inPort  = cfg.hasIn  ? `<div class="port port-in"  data-cid="${card.id}" data-port="in"></div>`  : '';
+  const outPort = cfg.hasOut ? `<div class="port port-out" data-cid="${card.id}" data-port="out"></div>` : '';
+  const caseBadge = ''; // Svarskortets index visas i rubriken (card-chip), se updateCaseBadges()
+
+  el.innerHTML = `
+  ${inPort}
+  <div class="card-chip">${defaultChipLabel}</div>
+  ${caseBadge}
+  <div class="card-label" contenteditable="true" spellcheck="false"${card.type === 'exit' ? ' inputmode="numeric" title="Heltal 0–30"' : ''} data-placeholder="${escapeHtml(cfg.placeholder)}">${escapeHtml(card.label)}</div>
+  ${card.type === 'exit' ? `<span class="exit-warn" aria-label="Uppgifter saknas" hidden>!</span>` : ''}
+  ${card.type === 'exit' ? `<button class="properties-btn" data-cid="${escapeAttr(card.id)}" onclick="onExitProperties(this)">✎</button>` : ''}
+  ${card.type === 'option' ? `<button class="ans-move ans-up" title="Flytta svaret upp" aria-label="Flytta svaret upp" hidden>▲</button><button class="ans-move ans-down" title="Flytta svaret ner" aria-label="Flytta svaret ner" hidden>▼</button>` : ''}
+  <button class="card-del" title="Ta bort">✕</button>
+  ${outPort}
+`;
+
+  // Starta som isolerad eftersom den saknar kopplingar
+  const hasConn = S.conns.some(c => c.from === card.id || c.to === card.id);
+  if (!hasConn) el.classList.add('isolated');
+
+  const labelEl = el.querySelector('.card-label');
+  // En textredigering blir ett eget ångra-steg: ögonblicksbild vid fokus, sparas vid blur om texten ändrats
+  let labelSnapshot = null, labelAtFocus = null;
+  labelEl.addEventListener('focus', () => { labelSnapshot = _captureSnapshot(); labelAtFocus = card.label; });
+  labelEl.addEventListener('blur', () => {
+    if (labelSnapshot && card.label !== labelAtFocus) pushUndoState(labelSnapshot);
+    labelSnapshot = null;
+  });
+  labelEl.addEventListener('input', () => {
+    if (card.type === 'exit') enforceExitValue(labelEl, card);
+    card.label = labelEl.textContent.trim();
+    scheduleAutosave();
+  });
+  if (card.type === 'exit') {
+    // Ta bort inledande nollor när redigeringen avslutas (t.ex. "07" → "7")
+    labelEl.addEventListener('blur', () => {
+      const t = labelEl.textContent.trim();
+      if (t && String(Number(t)) !== t) { labelEl.textContent = String(Number(t)); card.label = labelEl.textContent; scheduleAutosave(); }
+      // Samma siffra som en annan utgång → samma inställningar (ingår i samma ångra-steg som textändringen)
+      if (adoptExitGroupSettings(card)) {
+        scheduleAutosave();
+        toast(`Utgången fick samma inställningar som övriga utgångar med värdet ${card.label}`, true);
+      }
+    });
+  }
+  labelEl.addEventListener('mousedown', e => e.stopPropagation());
+  labelEl.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
+  labelEl.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); labelEl.blur(); } });
+
+  el.querySelector('.card-del').addEventListener('click', e => { e.stopPropagation(); deleteCard(card.id); });
+  el.querySelector('.card-del').addEventListener('mousedown', e => e.stopPropagation());
+  el.querySelector('.card-del').addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
+
+  // ✎ på utgångar – förhindra att kortet börjar dras vid klick
+  const propBtn = el.querySelector('.properties-btn');
+  if (propBtn)
+  {
+    propBtn.addEventListener('mousedown', e => e.stopPropagation());
+    propBtn.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
+    propBtn.addEventListener('mouseenter', () => showExitTooltip(propBtn));
+    propBtn.addEventListener('focus',      () => showExitTooltip(propBtn));
+    propBtn.addEventListener('mouseleave', hideExitTooltip);
+    propBtn.addEventListener('blur',       hideExitTooltip);
+    propBtn.addEventListener('click',      hideExitTooltip);
+  }
+
+  el.addEventListener('mousedown', onCardMD);
+  el.addEventListener('touchstart', onCardTouchStart, { passive: false });
+
+  if (card.type === 'exit') updateExitWarning(card, el);
+
+  // ▲/▼ på svarskort – ändrar svarets ordning (index) under frågan
+  el.querySelectorAll('.ans-move').forEach(btn => {
+    btn.addEventListener('mousedown', e => e.stopPropagation());
+    btn.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
+    btn.addEventListener('click', e => { e.stopPropagation(); moveAnswer(card.id, btn.classList.contains('ans-up') ? -1 : 1); });
+  });
+
+  el.querySelectorAll('.port').forEach(p => { p.addEventListener('mousedown', onPortMD); p.addEventListener('touchstart', onPortTouchStart, { passive: false }); });
+  document.getElementById('world').appendChild(el);
+}
+
+// Vart en knapp på utgången leder, beroende på kryssrutan "Använd URL från Inställningar":
+//  Primärknappen   – ikryssad: URL till tidbokningstjänst + tidstyps-id, annars egen URL (lagras i fältet tidstyp)
+//  Sekundärknappen – ikryssad: URL för Avbryt från Inställningar, annars egen URL
+function exitButtonTarget(d, which)
+{
+  const urlField = which === 'primary' ? 'tidstyp' : 'secondaryButtonUrl';
+  const flag = d[which + 'UseSettingsUrl'];
+  const useSettings = typeof flag === 'boolean' ? flag : !String(d[urlField] || '').trim();
+  if (which === 'primary' && useSettings)
+    return { useSettings, isTimeType: true, value: String(d.primaryTimeTypeId || '').trim(), what: 'tidstyps-id' };
+  if (which === 'secondary' && useSettings)
+    return { useSettings, isTimeType: false, fromSettings: true, value: String(S.settings.cancelUrl || '').trim(), what: 'URL (ange URL för Avbryt under Inställningar)' };
+  return { useSettings, isTimeType: false, value: String(d[urlField] || '').trim(), what: 'URL' };
+}
+
+// Regler för utgångens detaljer (som i formulärbyggaren):
+// minst en informationstext ELLER text + URL/tidstyps-id för primärknappen, och en knapp kräver både text och URL/tidstyps-id.
+function exitDetailProblems(d)
+{
+  const has = v => !!String(v || '').trim();
+  const p = exitButtonTarget(d, 'primary'), sec = exitButtonTarget(d, 'secondary');
+  const problems = [];
+  if (has(d.primaryButtonText) !== !!p.value) problems.push(`Primärknappen behöver både knapptext och ${p.what}.`);
+  if (has(d.secondaryButtonText) !== !!sec.value) problems.push(`Sekundärknappen behöver både knapptext och ${sec.what}.`);
+  if (!has(d.meddelande) && !(has(d.primaryButtonText) && p.value)) problems.push(`Ange en informationstext eller text och ${p.what} för primärknappen.`);
+  return problems;
+}
+
+// Visar ett rött ! på utgången om detaljerna inte uppfyller reglerna ovan
+function updateExitWarning(card, el = document.getElementById(getCardDomId(card.id)))
+{
+  const warn = el?.querySelector('.exit-warn');
+  if (!warn) return;
+  const problems = exitDetailProblems(card);
+  warn.hidden = problems.length === 0;
+  warn.title = problems.length ? problems.join(' ') + ' Klicka på ✎ för att ange.' : '';
+}
+
+// Utgångens värde måste vara ett heltal 0–30
+const EXIT_VALUE_MAX = 30;
+
+function isValidExitValue(value)
+{
+  const t = String(value ?? '').trim();
+  return /^\d{1,2}$/.test(t) && Number(t) <= EXIT_VALUE_MAX;
+}
+
+// Släpper bara igenom siffror och värden upp till 30 medan användaren skriver i utgångskortet
+function enforceExitValue(labelEl, card)
+{
+  const raw = labelEl.textContent;
+  let next = raw.replace(/\D/g, '');
+  if (next !== '' && !isValidExitValue(next)) next = isValidExitValue(card.label) ? String(card.label).trim() : '';
+  if (next === raw) return;
+  labelEl.textContent = next;
+  // Lägg markören sist i fältet igen
+  const range = document.createRange();
+  range.selectNodeContents(labelEl);
+  range.collapse(false);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+  toast('Utgångens värde måste vara ett heltal mellan 0 och ' + EXIT_VALUE_MAX);
+}
+
+function deleteCard(id) 
+{
+  const wasExit = findCard(id)?.type === 'exit';
+  pushUndoState();
+  S.cards = S.cards.filter(c => c.id !== id);
+  S.conns = S.conns.filter(c => c.from !== id && c.to !== id);
+  document.getElementById(getCardDomId(id))?.remove();
+  if (wasExit) 
+    renumberExits();
+  redraw(); 
+  scheduleAutosave(); 
+  updateCanvasHint();
+}
+
+function renumberExits() 
+{
+  let n = 1;
+  S.cards.filter(c => c.type === 'exit').forEach(c => {
+    c.exitNum = n++;
+    const b = document.querySelector(`#${getCardDomId(c.id)} .exit-badge`);
+    if (b) b.textContent = `#${c.exitNum}`;
+  });
+}
+
+function clearAll() 
+{
+  // Första frågan (startkortet) behålls – helst en fråga utan inkommande kopplingar
+  const questions = S.cards.filter(c => c.type === 'question');
+  const firstQuestion = questions.find(q => !S.conns.some(c => c.to === q.id)) || questions[0];
+  const toRemove = S.cards.filter(c => c !== firstQuestion);
+  if (toRemove.length === 0 && S.conns.length === 0)
+    return;
+  if (!confirm(firstQuestion ? 'Rensa alla kort och kopplingar utom första frågan?' : 'Rensa alla kort och kopplingar?')) return;
+  pushUndoState();
+  toRemove.forEach(c => document.getElementById(getCardDomId(c.id))?.remove());
+  S.cards = firstQuestion ? [firstQuestion] : []; S.conns = []; redraw(); scheduleAutosave(); updateCanvasHint();
+}
+
+function outgoingFrom(cardId) 
+{ 
+  return S.conns.filter(c => c.from === cardId); 
+}
+
+function incomingTo(cardId) 
+{ 
+  return S.conns.filter(c => c.to === cardId); 
+}
+
+function pathExists(startId, targetId) 
+{
+  const queue = [startId]; const seen = new Set();
+  while (queue.length) 
+  {
+    const id = queue.shift();
+    if (id === targetId) 
+      return true;
+    if (seen.has(id)) 
+      continue;
+    seen.add(id); outgoingFrom(id).forEach(c => queue.push(c.to));
+  }
+  return false;
+}
+
+function addConn(fromId, toId) 
+{
+  const fc = findCard(fromId), tc = findCard(toId);
+  if (!fc || !tc) 
+    return false;
+  if (fromId === toId) 
+  { 
+    toast('En nod kan inte kopplas till sig själv'); return false; 
+  }
+
+  const valid = validMap();
+  if (!(valid[fc.type] || []).includes(tc.type)) 
+  { 
+    toast(`Ogiltig koppling: ${CARD_CFG[fc.type].chip} → ${CARD_CFG[tc.type].chip}`); 
+    return false; 
+  }
+
+  if (S.conns.find(c => c.from === fromId && c.to === toId)) 
+  { 
+    toast('Kopplingen finns redan'); return false; 
+  }
+
+  if (fc.type === 'option' && S.conns.find(c => c.from === fromId)) 
+  { 
+    toast('Ett alternativ kan bara leda till ett ställe'); return false; 
+  }
+
+  if (pathExists(toId, fromId)) 
+  { 
+    toast('Kopplingen skulle skapa en cykel och tillåts inte'); return false; 
+  }
+  runUndoableMutation(() => {
+    S.conns.push({ id: createConnectionId(), from: fromId, to: toId });
+  });
+  redraw(); 
+  scheduleAutosave(); 
+  return true;
+}
+
+function portPos(cardId, port) 
+{
+  const card = findCard(cardId);
+  if (!card || !CARD_CFG[card.type]) return { x: 0, y: 0 };
+  const el = document.getElementById(getCardDomId(cardId));
+  const w = el ? el.offsetWidth  : CARD_CFG[card.type].w;
+  const h = el ? el.offsetHeight : 80;
+  if (port === 'out') 
+    return { x: card.x + w / 2, y: card.y + h };
+
+  return { x: card.x + w / 2, y: card.y };
+}
+
+function buildMarkers() 
+{
+  const defs = document.getElementById('svg-defs');
+  defs.innerHTML = '';
+  Object.entries(CONN_COLORS).forEach(([type, { stroke, marker }]) => {
+    const m = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+    m.setAttribute('id', marker); m.setAttribute('markerWidth', '9'); m.setAttribute('markerHeight', '7');
+    m.setAttribute('refX', '7'); m.setAttribute('refY', '3.5'); m.setAttribute('orient', 'auto');
+    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    poly.setAttribute('points', '0 0, 9 3.5, 0 7'); poly.setAttribute('fill', stroke);
+    m.appendChild(poly); defs.appendChild(m);
+  });
+}
+
+// Svaren under en fråga i fast ordning = ordningen på frågans utgående kopplingar i S.conns
+function orderedAnswers(qId)
+{
+  return S.conns.filter(cn => cn.from === qId)
+    .map(cn => findCard(cn.to))
+    .filter(c => c && c.type === 'option');
+}
+
+// Flyttar ett svar ett steg upp (dir = -1) eller ner (dir = 1) under sin fråga
+function moveAnswer(optId, dir)
+{
+  const parentConn = S.conns.find(cn => cn.to === optId);
+  if (!parentConn) return;
+  const siblings = S.conns.filter(cn => cn.from === parentConn.from && findCard(cn.to)?.type === 'option');
+  const idx = siblings.indexOf(parentConn), other = siblings[idx + dir];
+  if (!other) return;
+  runUndoableMutation(() => {
+    const i = S.conns.indexOf(parentConn), j = S.conns.indexOf(other);
+    [S.conns[i], S.conns[j]] = [S.conns[j], S.conns[i]];
+  });
+  redraw();
+  scheduleAutosave();
+  if (document.getElementById('template-panel')?.classList.contains('open')) renderTemplateBasis();
+}
+
+// Äldre modeller numrerade svaren efter lägsta nåbara utgång – sortera om kopplingarna en gång så att numreringen består
+function migrateAnswerOrder()
+{
+  S.cards.filter(c => c.type === 'question' || c.type === 'followup').forEach(q => {
+    const outs = S.conns.filter(cn => cn.from === q.id);
+    const slots = outs.map(cn => S.conns.indexOf(cn));
+    const sorted = outs.map(cn => ({ cn, minExit: minReachableExit(cn.to) })).sort((a, b) => a.minExit - b.minExit).map(x => x.cn);
+    slots.forEach((slot, k) => { S.conns[slot] = sorted[k]; });
+  });
+}
+
+function updateCaseBadges() 
+{
+  S.cards.filter(c => c.type === 'question' || c.type === 'followup').forEach(qCard => {
+    const opts = orderedAnswers(qCard.id);
+    opts.forEach((opt, idx) => {
+      const el = document.getElementById(getCardDomId(opt.id));
+      if (!el) 
+        return;
+      const chip = el.querySelector('.card-chip');
+      if (chip) { chip.textContent = 'Svar ' + (idx + 1); chip.title = 'Svar ' + (idx + 1) + ' av ' + opts.length; }
+      const up = el.querySelector('.ans-up'), down = el.querySelector('.ans-down');
+      if (up)   { up.hidden = false;   up.disabled = idx === 0; }
+      if (down) { down.hidden = false; down.disabled = idx === opts.length - 1; }
+    });
+  });
+
+  S.cards.filter(c => c.type === 'option').forEach(c => {
+    const hasParent = S.conns.some(cn => cn.to === c.id);
+    if (!hasParent) {
+      const el = document.getElementById(getCardDomId(c.id));
+      const chip = el?.querySelector('.card-chip');
+      if (chip) { chip.textContent = CARD_CFG.option.chip; chip.title = ''; }
+      el?.querySelectorAll('.ans-move').forEach(btn => { btn.hidden = true; });
+    }
+  });
+}
+
+function bezier(fx, fy, tx, ty) 
+{
+  const dy = Math.max(Math.abs(ty - fy) * 0.55, 40);
+  return `M ${fx} ${fy} C ${fx} ${fy + dy}, ${tx} ${ty - dy}, ${tx} ${ty}`;
+}
+
+let _redrawPending = false;
+
+function redraw() 
+{
+  if (_redrawPending) 
+    return;
+
+  _redrawPending = true;
+  requestAnimationFrame(_redrawImpl);
+}
+
+function _redrawImpl() 
+{
+    _redrawPending = false;
+    const svg = document.getElementById('svg-layer');
+    svg.querySelectorAll('path.conn-glow, path.conn-line, path.conn-hit, path.temp-glow, path.temp-line').forEach(p => p.remove());
+    updateCaseBadges();
+
+    S.cards.forEach(card => {
+      const el = document.getElementById(getCardDomId(card.id));
+      if (el) {
+        const hasConn = S.conns.some(c => c.from === card.id || c.to === card.id);
+        el.classList.toggle('isolated', !hasConn);
+      }
+    });
+
+    S.conns.forEach(conn => {
+      const fc = findCard(conn.from); if (!fc) return;
+      const from = portPos(conn.from, 'out'), to = portPos(conn.to, 'in');
+      const d = bezier(from.x, from.y, to.x, to.y);
+      const { stroke, marker } = CONN_COLORS[fc.type];
+
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      g.setAttribute('d', d); g.setAttribute('class', 'conn-glow'); 
+      g.setAttribute('stroke', stroke); 
+      g.setAttribute('stroke-width', '5'); 
+      g.setAttribute('fill', 'none'); 
+      g.setAttribute('opacity', '0.12'); 
+      svg.appendChild(g);
+
+      const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      p.setAttribute('d', d); 
+      p.setAttribute('class', 'conn-line'); 
+      p.setAttribute('stroke', stroke); 
+      p.setAttribute('stroke-width', '3'); 
+      p.setAttribute('fill', 'none'); 
+      p.setAttribute('opacity', '0.9'); 
+      p.setAttribute('marker-end', `url(#${marker})`); 
+      p.dataset.conn = conn.id; 
+      svg.appendChild(p);
+
+      // Osynlig, bredare klickyta ovanpå linjen så att kopplingen är lätt att träffa
+      const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      hit.setAttribute('d', d);
+      hit.setAttribute('class', 'conn-hit');
+      hit.setAttribute('fill', 'none');
+      hit.dataset.conn = conn.id;
+      hit.addEventListener('mouseenter', () => p.classList.add('hover'));
+      hit.addEventListener('mouseleave', () => p.classList.remove('hover'));
+      hit.addEventListener('click', e => { e.stopPropagation(); 
+      if (confirm('Ta bort denna koppling?')) 
+      { 
+        runUndoableMutation(() => { S.conns = S.conns.filter(c => c.id !== conn.id); }); redraw(); scheduleAutosave(); 
+      } });
+      svg.appendChild(hit);
+  });
+  updateTempLine(); applyValidationState(validateModel());
+}  // end _redrawImpl
+
+let _mouseWX = 0, _mouseWY = 0;
+function updateTempLine() 
+{
+  const svg = document.getElementById('svg-layer');
+  svg.querySelectorAll('.temp-glow,.temp-line').forEach(p => p.remove());
+  if (S.connFrom === null) return;
+  const from = portPos(S.connFrom, 'out');
+  const d = bezier(from.x, from.y, _mouseWX, _mouseWY);
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  g.setAttribute('class', 'temp-glow'); 
+  g.setAttribute('d', d); 
+  g.setAttribute('stroke', '#fff'); 
+  g.setAttribute('stroke-width', '5'); 
+  g.setAttribute('fill', 'none'); 
+  g.setAttribute('opacity', '0.06'); 
+  g.setAttribute('stroke-dasharray', '10 5'); 
+
+  svg.appendChild(g);
+  const l = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  l.setAttribute('class', 'temp-line'); 
+  l.setAttribute('d', d); 
+  l.setAttribute('stroke', '#8899ff'); 
+  l.setAttribute('stroke-width', '1.5'); 
+  l.setAttribute('fill', 'none'); 
+  l.setAttribute('opacity', '0.7'); 
+  l.setAttribute('stroke-dasharray', '10 5'); 
+  svg.appendChild(l);
+}
+
+function onPortMD(e) 
+{
+  e.stopPropagation(); e.preventDefault();
+  const port = e.currentTarget.dataset.port, cid = e.currentTarget.dataset.cid;
+  if (port === 'out') { S.connFrom = cid; e.currentTarget.classList.add('active'); document.getElementById('canvas').classList.add('connecting'); document.getElementById('conn-indicator').classList.add('visible'); updateTempLine(); }
+  else if (port === 'in' && S.connFrom !== null) { const from = S.connFrom; cancelConn(); addConn(from, cid); }
+}
+
+function cancelConn() 
+{
+  S.connFrom = null; 
+  document.getElementById('canvas').classList.remove('connecting');
+  document.getElementById('conn-indicator').classList.remove('visible'); 
+  document.querySelectorAll('.port.active').forEach(p => p.classList.remove('active'));
+  document.getElementById('svg-layer').querySelectorAll('.temp-glow,.temp-line').forEach(p => p.remove());
+}
+
+function onCardMD(e) 
+{
+  const cid = e.currentTarget.dataset.id;
+  if (S.connFrom !== null) { e.stopPropagation(); if (cid !== S.connFrom) { const from = S.connFrom; cancelConn(); addConn(from, cid); } else cancelConn(); return; }
+  const tgt = e.target; if (tgt.classList.contains('card-label') || tgt.classList.contains('card-del') || tgt.classList.contains('port')) 
+    return;
+  e.preventDefault(); 
+  e.stopPropagation();
+  const card = findCard(cid), wp = toWorld(e.clientX, e.clientY);
+  S.dragId = cid; S.dragOX = wp.x - card.x; S.dragOY = wp.y - card.y; e.currentTarget.classList.add('dragging');
+}
+
+const cnv = document.getElementById('canvas');
+let _touchPinch = null;
+
+function touchPoint(t) 
+{ 
+  return { clientX: t.clientX, clientY: t.clientY }; 
+}
+
+function pinchDist(a, b) 
+{ 
+  const dx = a.clientX - b.clientX, dy = a.clientY - b.clientY; return Math.hypot(dx, dy); 
+}
+
+function pinchCenter(a, b) 
+{ 
+  return { clientX: (a.clientX + b.clientX) / 2, clientY: (a.clientY + b.clientY) / 2 }; 
+}
+
+function zoomAt(clientX, clientY, f) 
+{
+  const r = cnv.getBoundingClientRect(); const mx = clientX - r.left, my = clientY - r.top;
+  S.panX = mx - (mx - S.panX) * f; S.panY = my - (my - S.panY) * f; S.scale = Math.max(0.15, Math.min(4, S.scale * f)); applyTX();
+}
+
+function onCardTouchStart(e) 
+{ 
+  if (!e.touches || e.touches.length !== 1) return; const t = e.touches[0]; 
+  onCardMD({ target: e.target, currentTarget: e.currentTarget, clientX: t.clientX, clientY: t.clientY, preventDefault: () => e.preventDefault(), stopPropagation: () => e.stopPropagation() }); 
+}
+
+function onPortTouchStart(e) 
+{ 
+  if (!e.touches || e.touches.length !== 1) return; const t = e.touches[0]; onPortMD({ target: e.target, currentTarget: e.currentTarget, clientX: t.clientX, clientY: t.clientY, preventDefault: () => e.preventDefault(), stopPropagation: () => e.stopPropagation() }); 
+}
+
+cnv.addEventListener('mousedown', e => {
+  if (S.connFrom !== null) { cancelConn(); return; }
+  closeFab();
+  if (e.target === cnv || e.target === document.getElementById('world') || e.target === document.getElementById('svg-layer')) { S.isPan = true; S.panSX = e.clientX; S.panSY = e.clientY; S.panSPX = S.panX; S.panSPY = S.panY; cnv.classList.add('panning'); }
+});
+
+document.addEventListener('mousemove', e => {
+  const wp = toWorld(e.clientX, e.clientY); _mouseWX = wp.x; _mouseWY = wp.y;
+  if (S.connFrom !== null) { updateTempLine(); return; }
+  if (S.dragId !== null) { const card = S.cards.find(c => c.id === S.dragId); card.x = wp.x - S.dragOX; card.y = wp.y - S.dragOY; const el = document.getElementById(getCardDomId(card.id)); el.style.left = card.x + 'px'; el.style.top  = card.y + 'px'; redraw(); return; }
+  if (S.isPan) { S.panX = S.panSPX + (e.clientX - S.panSX); S.panY = S.panSPY + (e.clientY - S.panSY); applyTX(); }
+});
+
+document.addEventListener('mouseup', () => {
+  if (S.dragId !== null) 
+  { 
+    document.getElementById(getCardDomId(S.dragId))?.classList.remove('dragging'); 
+    S.dragId = null; 
+    scheduleAutosave(); 
+  }
+
+  if (S.isPan) 
+    scheduleAutosave();
+  S.isPan = false; 
+  cnv.classList.remove('panning');
+});
+
+cnv.addEventListener('touchstart', e => {
+  if (e.touches.length === 2) { const a = e.touches[0], b = e.touches[1]; _touchPinch = { startDist: pinchDist(a, b), startScale: S.scale, center: pinchCenter(a, b) }; S.isPan = false; cnv.classList.remove('panning'); return; }
+  if (e.touches.length !== 1) return;
+  if (S.connFrom !== null && (e.target === cnv || e.target === document.getElementById('world') || e.target === document.getElementById('svg-layer'))) { cancelConn(); return; }
+  if (e.target === cnv || e.target === document.getElementById('world') || e.target === document.getElementById('svg-layer')) { const t = e.touches[0]; S.isPan = true; S.panSX = t.clientX; S.panSY = t.clientY; S.panSPX = S.panX; S.panSPY = S.panY; cnv.classList.add('panning'); e.preventDefault(); }
+}, { passive: false });
+document.addEventListener('touchmove', e => {
+  if (e.touches.length === 2) { const a = e.touches[0], b = e.touches[1]; if (!_touchPinch) { _touchPinch = { startDist: pinchDist(a, b), startScale: S.scale, center: pinchCenter(a, b) }; } const dist = pinchDist(a, b); const factor = dist / Math.max(1, _touchPinch.startDist); const targetScale = Math.max(0.15, Math.min(4, _touchPinch.startScale * factor)); const zoomFactor = targetScale / S.scale; const center = pinchCenter(a, b); zoomAt(center.clientX, center.clientY, zoomFactor); e.preventDefault(); return; }
+  if (e.touches.length !== 1) return;
+  const t = e.touches[0]; const wp = toWorld(t.clientX, t.clientY); _mouseWX = wp.x; _mouseWY = wp.y;
+  if (S.connFrom !== null) { updateTempLine(); e.preventDefault(); return; }
+  if (S.dragId !== null) { const card = S.cards.find(c => c.id === S.dragId); if (card) { card.x = wp.x - S.dragOX; card.y = wp.y - S.dragOY; const el = document.getElementById(getCardDomId(card.id)); if (el) { el.style.left = card.x + 'px'; el.style.top = card.y + 'px'; } redraw(); } e.preventDefault(); return; }
+  if (S.isPan) { S.panX = S.panSPX + (t.clientX - S.panSX); S.panY = S.panSPY + (t.clientY - S.panSY); applyTX(); e.preventDefault(); }
+}, { passive: false });
+document.addEventListener('touchend', e => {
+  if (e.touches.length < 2) _touchPinch = null;
+  if (e.touches.length === 0) { if (S.dragId !== null) { document.getElementById(getCardDomId(S.dragId))?.classList.remove('dragging'); S.dragId = null; scheduleAutosave(); } if (S.isPan) scheduleAutosave(); S.isPan = false; cnv.classList.remove('panning'); }
+}, { passive: true });
+cnv.addEventListener('wheel', e => {
+  e.preventDefault(); const f = e.deltaY > 0 ? 0.88 : 1.12; const r = cnv.getBoundingClientRect(); const mx = e.clientX - r.left, my = e.clientY - r.top; S.panX = mx - (mx - S.panX) * f; S.panY = my - (my - S.panY) * f; S.scale = Math.max(0.15, Math.min(4, S.scale * f)); applyTX();
+}, { passive: false });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { cancelConn(); return; }
+
+  // Undo: Ctrl+Z
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+    // Skip if focus is inside a text input / contenteditable
+    const tag = document.activeElement?.tagName;
+    const ce  = document.activeElement?.contentEditable === 'true';
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || ce) return;
+    e.preventDefault();
+    undoAction();
+    return;
+  }
+
+  // Redo: Ctrl+Y or Ctrl+Shift+Z
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+    const tag = document.activeElement?.tagName;
+    const ce  = document.activeElement?.contentEditable === 'true';
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || ce) return;
+    e.preventDefault();
+    redoAction();
+    return;
+  }
+});
+
+function doZoom(f) { const r = cnv.getBoundingClientRect(); const mx = r.width / 2, my = r.height / 2; S.panX = mx - (mx - S.panX) * f; S.panY = my - (my - S.panY) * f; S.scale = Math.max(0.15, Math.min(4, S.scale * f)); applyTX(); scheduleAutosave(); }
+function resetView() { S.scale = 1; S.panX = 100; S.panY = 60; applyTX(); scheduleAutosave(); }
+
+let _toastT;
+function toast(msg, ok = false) {
+  const el = document.getElementById('toast'); el.textContent = msg; el.className = 'show' + (ok ? ' ok' : '');
+  clearTimeout(_toastT); _toastT = setTimeout(() => el.className = '', 3200);
+}
+
+function validateModel() {
+  const errors = [], warnings = [], nodeStatus = {};
+  const addIssue = (level, message, cardIds = []) => { const issue = { level, message, cardIds }; (level === 'error' ? errors : warnings).push(issue); cardIds.forEach(id => { if (!nodeStatus[id] || nodeStatus[id] !== 'error') nodeStatus[id] = level; }); };
+  const cardsById = Object.fromEntries(S.cards.map(c => [c.id, c]));
+  const questions = S.cards.filter(c => c.type === 'question'), qOrFollowups = S.cards.filter(c => c.type === 'question' || c.type === 'followup'), options = S.cards.filter(c => c.type === 'option'), exits = S.cards.filter(c => c.type === 'exit'), roots = questions.filter(c => incomingTo(c.id).length === 0);
+  if (questions.length === 0) addIssue('error', 'Ingen fråga finns i modellen.'); if (options.length === 0) addIssue('error', 'Inga svarsalternativ finns i modellen.'); if (exits.length === 0) addIssue('error', 'Ingen utgång finns i modellen.'); if (roots.length === 0 && questions.length > 0) addIssue('error', 'Ingen rotfråga kunde hittas. Alla frågor har inkommande kopplingar.'); if (roots.length > 1) addIssue('warning', `Flera rotfrågor hittades (${roots.length} st). Regler genereras från samtliga rötter.`, roots.map(c => c.id));
+  S.cards.forEach(card => {
+    const incoming = incomingTo(card.id), outgoing = outgoingFrom(card.id), label = (card.label || '').trim(), name = label || CARD_CFG[card.type].chip;
+    if (!label) addIssue('warning', `${CARD_CFG[card.type].chip} ${card.id} saknar textetikett.`, [card.id]);
+    if (card.type === 'question') { if (outgoing.length === 0) addIssue('error', `Frågan "${name}" saknar Svarsalternativ.`, [card.id]); if (incoming.length > 0) addIssue('warning', `Frågan "${name}" har inkommande kopplingar och fungerar då inte som rotfråga.`, [card.id]); }
+    if (card.type === 'followup') { if (incoming.length === 0) addIssue('error', `Följdfrågan "${name}" saknar inkommande koppling.`, [card.id]); if (outgoing.length === 0) addIssue('error', `Följdfrågan "${name}" saknar svarsalternativ.`, [card.id]); }
+    if (card.type === 'option') { if (incoming.length === 0) addIssue('error', `Alternativet "${name}" saknar överordnad fråga eller följdfråga.`, [card.id]); if (incoming.length > 1) addIssue('warning', `Alternativet "${name}" används från flera föräldranoder.`, [card.id]); if (outgoing.length === 0) addIssue('error', `Alternativet "${name}" leder inte vidare till följdfråga eller utgång.`, [card.id]); }
+    if (card.type === 'exit' && exitSiblings(card).some(o => !sameExitSettings(o, card)) && S.cards.find(c => c.type === 'exit' && String(c.label || '').trim() === label) === card) addIssue('warning', `Utgångar med värdet ${label} har olika inställningar. Öppna ✎ och spara för att göra dem lika.`, [card.id, ...exitSiblings(card).map(c => c.id)]);
+    if (card.type === 'exit') { if (incoming.length === 0) addIssue('warning', `Utgången "${name}" används inte av någon gren.`, [card.id]); if (!label) addIssue('error', `En utgång saknar värde. Ange ett heltal mellan 0 och ${EXIT_VALUE_MAX}.`, [card.id]); else if (!isValidExitValue(label)) addIssue('error', `Utgången "${name}" har ett ogiltigt värde. Värdet måste vara ett heltal mellan 0 och ${EXIT_VALUE_MAX}.`, [card.id]); }
+  });
+  const reachable = new Set(), queue = roots.map(c => c.id);
+  while (queue.length) { const id = queue.shift(); if (reachable.has(id)) continue; reachable.add(id); outgoingFrom(id).forEach(c => queue.push(c.to)); }
+  S.cards.forEach(card => { const incoming = incomingTo(card.id).length; if (roots.length > 0 && incoming > 0 && !reachable.has(card.id)) { addIssue('warning', `${CARD_CFG[card.type].chip} "${(card.label || '').trim() || card.id}" nås inte från någon rotfråga.`, [card.id]); } });
+  qOrFollowups.forEach(card => { const outs = outgoingFrom(card.id); if (outs.length > 0) { const deadBranches = outs.filter(c => minReachableExit(c.to) === Infinity).map(c => cardsById[c.to]).filter(Boolean); if (deadBranches.length > 0) { addIssue('error', `${CARD_CFG[card.type].chip} "${(card.label || '').trim() || card.id}" har grenar utan nåbar utgång.`, [card.id, ...deadBranches.map(c => c.id)]); } } });
+  options.forEach(card => { if (outgoingFrom(card.id).length > 0 && minReachableExit(card.id) === Infinity) { addIssue('error', `Alternativet "${(card.label || '').trim() || card.id}" når ingen utgång.`, [card.id]); } });
+  return { errors, warnings, nodeStatus, isValid: errors.length === 0, completePathCount: findPaths(buildQMap()).length };
+}
+
+function applyValidationState(validation) 
+{ 
+  S.lastValidation = validation; 
+  S.cards.forEach(card => { 
+    const el = document.getElementById(getCardDomId(card.id)); 
+    if (!el) 
+      return; 
+    el.classList.remove('val-error', 'val-warn'); 
+    const status = validation?.nodeStatus?.[card.id]; 
+    if (status === 'error') 
+      el.classList.add('val-error'); 
+    else if (status === 'warning') 
+      el.classList.add('val-warn'); }); 
+  }
+
+function renderValidation(validation) {
+  const el = document.getElementById('dp-validation'); if (!el) return; const items = [];
+  validation.errors.forEach(msg => items.push(`<div class="validation-item err"><strong>Fel</strong><div>${escapeHtml(msg.message)}</div></div>`)); validation.warnings.forEach(msg => items.push(`<div class="validation-item warn"><strong>Varning</strong><div>${escapeHtml(msg.message)}</div></div>`));
+  if (!items.length) items.push('<div class="validation-item ok"><strong>OK</strong><div>Inga valideringsfel hittades.</div></div>');
+  el.innerHTML = `<h3>Validering</h3><div class="validation-summary"><div class="validation-pill err">Fel: ${validation.errors.length}</div><div class="validation-pill warn">Varningar: ${validation.warnings.length}</div><div class="validation-pill ${validation.isValid ? 'ok' : 'warn'}">Kompletta vägar: ${validation.completePathCount}</div></div><div class="validation-list">${items.join('')}</div>`;
+}
+
+function escapeDroolsStringLiteral(value) {
+  return String(value ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/\r/g, '\\r')
+    .replace(/\n/g, '\\n')
+    .replace(/\t/g, '\\t')
+    .replace(/"/g, '\\"');
+}
+function droolsString(value) {
+  return `"${escapeDroolsStringLiteral(value)}"`;
+}
+function sanitizeSingleLineComment(value) {
+  return String(value ?? '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/[\u0000-\u001f\u007f]/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+function sanitize(s) { return (s || '').replace(/[åä]/g,'a').replace(/ö/g,'o').replace(/[ÅÄ]/g,'A').replace(/Ö/g,'O').replace(/[^a-zA-Z0-9_]/g,'_').replace(/^(\d)/,'_$1').replace(/_+/g,'_').replace(/_$/,''); }
+function escapeHtml(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function escapeAttr(s) { return escapeHtml(s).replace(/`/g, '&#96;'); }
+
+function buildQMap() { const map = {}; S.cards.filter(c => c.type === 'question' || c.type === 'followup').forEach((c, i) => { map[c.id] = 'Q' + (i + 1); }); return map; }
+function questionIndexLabel(cardId) { return buildQMap()[cardId] || ''; }
+function minReachableExit(startId) {
+  let min = Infinity; const queue = [startId], seen  = new Set();
+  while (queue.length) { const cid = queue.shift(); if (seen.has(cid)) continue; seen.add(cid); const card = findCard(cid); if (!card) continue; if (card.type === 'exit') { if (card.exitNum != null && card.exitNum < min) min = card.exitNum; continue; } S.conns.filter(cn => cn.from === cid).forEach(cn => queue.push(cn.to)); } return min;
+}
+function findPaths(qMap) {
+  const paths = [], roots = S.cards.filter(c => c.type === 'question' && !S.conns.some(x => x.to === c.id));
+  function dfs(cardId, steps, visited) {
+    if (visited.has(cardId)) return; const card = findCard(cardId); if (!card) return;
+    if (card.type === 'exit') { paths.push({ steps, exit: card }); return; }
+    const outOpts = S.conns.filter(cn => cn.from === cardId).map((conn, idx) => ({ conn, caseNum: idx + 1 }));
+    outOpts.forEach(({ conn, caseNum }) => { const optCard = findCard(conn.to); if (!optCard || optCard.type !== 'option') return; const step = { fqKey: qMap[cardId], caseNum, optLabel: optCard.label || '—', qLabel: card.label || '—' }; const nextConn = S.conns.find(x => x.from === optCard.id); if (!nextConn) return; dfs(nextConn.to, [...steps, step], new Set([...visited, cardId])); });
+  }
+  roots.forEach(r => dfs(r.id, [], new Set())); return paths;
+}
+
+function generateDrools() {
+  const qMap = buildQMap(), paths = findPaths(qMap);
+  if (paths.length === 0) return '// Inga kompletta vägar hittades.\n// Tips: Koppla Fråga → Svarsalternativ → Utgång (alla alternativ måste ha en koppling).';
+
+  const L = [];
+  L.push('when');
+  L.push('  $q: Questions()');
+  L.push('then');
+  L.push('  Double result = null; // Default');
+  L.push('');
+
+  const allFqKeys = [...new Set(paths.flatMap(p => p.steps.map(s => s.fqKey)))];
+  paths.forEach((path, i) => 
+  {
+    // första villkoret 'if', övriga utom sista 'else if'
+    const kw = i === 0 ? 'if' : 'else if';
+
+    // Skapa kommentarsrad för kommande if/else if sats
+    const trail = path.steps.map(s => `${sanitizeSingleLineComment(s.qLabel)} = "${sanitizeSingleLineComment(s.optLabel)}"`).join(' → ');
+    L.push('  // ' + trail + ' → ' + sanitizeSingleLineComment(path.exit.label));
+
+    // Här börjar villkoret (if/else if)
+    const pathKeys = new Set(path.steps.map(s => s.fqKey));
+    const posConds = path.steps.map(s => `$q.get(${droolsString(s.fqKey)}) != null && $q.get(${droolsString(s.fqKey)}).intValue() == ${s.caseNum}`);
+    const negConds = allFqKeys.filter(k => !pathKeys.has(k)).map(k => `$q.get(${droolsString(k)}) == null`);
+    const condStr = [...posConds, ...negConds].join(' &&\n      ');
+    L.push('  ' + kw + ' (' + condStr + ') {');
+
+    // Tilldelning av variabeln result
+    // Utgångens värde är det användaren angett – inget reservvärde från det automatiska numret
+    const exitValue = String(path.exit.label ?? '').trim();
+    L.push('    result = Double.parseDouble(' + droolsString(exitValue) + '); // → ' + sanitizeSingleLineComment(exitValue));
+    L.push('  }');
+  });
+
+  // sista else-satsen som är hårdkodad samt tilldelnng av outcome
+  L.push('  else {');
+  L.push('    result = null; // Ingen matchande väg');
+  L.push('  }');
+  L.push('  outcome.set(result);');
+  L.push('end');
+  return L.join('\n');
+}
+
+function highlight(src) {
+  function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  return src.split('\n').map(line => {
+    const escaped = esc(line); if (escaped.trim().startsWith('//')) return '<span class="tk-cmt">' + escaped + '</span>';
+    const re = /("(?:[^"\\]|\\.)*")|(\$[a-zA-Z_]\w*)|\b(rule|when|then|end|package|import|if|else|switch|case|default|break|return|int|Double|null)\b|\b(Questions|Integer)\b|\b(get|set|intValue|answeredCount|outcome)\b(?=\s*[.(])|\b(\d+\.?\d*)\b/g;
+    let result = '', last = 0, m;
+    while ((m = re.exec(escaped)) !== null) { result += escaped.slice(last, m.index); if (m[1]) result += '<span class="tk-str">' + m[1] + '</span>'; else if (m[2]) result += '<span class="tk-var">' + m[2] + '</span>'; else if (m[3]) result += '<span class="tk-kw">' + m[3] + '</span>'; else if (m[4]) result += '<span class="tk-type">' + m[4] + '</span>'; else if (m[5]) result += '<span class="tk-fn">' + m[5] + '</span>'; else if (m[6]) result += '<span class="tk-num">' + m[6] + '</span>'; last = m.index + m[0].length; }
+    return result + escaped.slice(last);
+  }).join('\n');
+}
+
+function generateAndShow() {
+  SIDE_PANELS.filter(p => p !== 'drools-panel').forEach(p => document.getElementById(p)?.classList.remove('open'));
+  const validation = validateModel(); applyValidationState(validation); renderValidation(validation);
+  const statsEl = document.getElementById('dp-stats');
+  { const qCards = S.cards.filter(c => c.type === 'question' || c.type === 'followup'); const exits  = S.cards.filter(c => c.type === 'exit'); statsEl.innerHTML = `<div class="stat">Frågor: <span>${qCards.length}</span></div><div class="stat">Utgångar: <span>${exits.length}</span></div><div class="stat">Alternativ: <span>${S.cards.filter(c=>c.type==='option').length}</span></div><div class="stat">Kopplingar: <span>${S.conns.length}</span></div>`; }
+  document.getElementById('drools-panel').classList.add('open');
+  if (window.innerWidth <= 768) {
+    document.getElementById('mobile-backdrop').classList.add('visible');
+  }
+  if (!validation.isValid) { S.rawDrools = ''; document.getElementById('dp-output').innerHTML = highlight(`// Generering stoppades.\n// Rätta valideringsfelen i panelen ovan och försök igen.`); toast('Generering stoppades: modellen innehåller valideringsfel'); return; }
+  const rules = generateDrools(); S.rawDrools = rules; document.getElementById('dp-output').innerHTML = highlight(rules); toast('Drools-skript genererades', true);
+}
+function fallbackCopyText(text) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    toast(ok ? 'Kopierat till urklipp!' : 'Kopiering misslyckades', ok);
+  } catch (err) {
+    console.error(err);
+    toast('Kopiering misslyckades');
+  }
+}
+
+function copyDrools() {
+  if (!S.rawDrools) { toast('Generera reglerna först'); return; }
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(S.rawDrools)
+      .then(() => toast('Kopierat till urklipp!', true))
+      .catch(() => fallbackCopyText(S.rawDrools));
+    return;
+  }
+  fallbackCopyText(S.rawDrools);
+}
+// Sidopanelerna – endast en är öppen åt gången
+const SIDE_PANELS = ['drools-panel', 'template-panel', 'create-panel', 'timetype-panel'];
+
+function showSidePanel(id) {
+  SIDE_PANELS.forEach(p => document.getElementById(p)?.classList.toggle('open', p === id));
+  if (window.innerWidth <= 768) {
+    document.getElementById('mobile-backdrop').classList.add('visible');
+  }
+}
+
+function closePanel() {
+  SIDE_PANELS.forEach(p => document.getElementById(p)?.classList.remove('open'));
+  document.getElementById('mobile-backdrop').classList.remove('visible');
+}
+
+// Tabell tidstyper: en rad per utgång (sorterad efter utgångens siffra) med primärknappens tidstyps-id.
+// Tidstyps-id kan ändras direkt i tabellen och sparas då på utgången (samma fält som i utgångens dialog).
+function renderTimeTypeTable() {
+  const out = document.getElementById('ttp-output');
+  const exits = S.cards.filter(c => c.type === 'exit')
+    .map((c, i) => ({ c, i, n: Number(String(c.label || '').trim()) }))
+    .sort((a, b) => (Number.isFinite(a.n) ? a.n : Infinity) - (Number.isFinite(b.n) ? b.n : Infinity) || a.i - b.i)
+    .map(x => x.c);
+  if (!exits.length) {
+    out.innerHTML = '<div class="ttp-empty">Flödet har inga utgångar.</div>';
+    return;
+  }
+  // En rad per utgångssiffra – utgångar med samma siffra delar inställningar
+  const seen = new Set();
+  const groups = exits.filter(e => {
+    const v = String(e.label || '').trim();
+    if (!v) return true;
+    if (seen.has(v)) return false;
+    seen.add(v);
+    return true;
+  });
+  const rows = groups.map(e => {
+    const t = exitButtonTarget(e, 'primary');
+    const count = exitSiblings(e).length + 1;
+    const note = t.isTimeType ? '' : '<div class="ttp-note">Primärknappen använder en egen URL – tidstyps-id används först när "Använd URL från Inställningar" kryssas i.</div>';
+    return `<tr>
+        <td>${escapeHtml(String(e.label || '').trim() || '?')}${count > 1 ? `<div class="ttp-count">${count} utgångar</div>` : ''}</td>
+        <td>
+          <input type="text" class="ttp-input" data-cid="${escapeAttr(e.id)}" value="${escapeAttr(e.primaryTimeTypeId || '')}"
+                 maxlength="100" spellcheck="false" placeholder="Ange tidstyps-id"
+                 aria-label="Tidstyps-id för utgång ${escapeAttr(String(e.label || '').trim())}">
+          ${note}
+        </td>
+        <td>
+          <input type="text" class="ttp-input ttp-comment" data-cid="${escapeAttr(e.id)}" data-field="comment" value="${escapeAttr(e.comment || '')}"
+                 maxlength="500" placeholder="Valfri kommentar"
+                 aria-label="Kommentar för utgång ${escapeAttr(String(e.label || '').trim())}">
+        </td>
+      </tr>`;
+  }).join('');
+  out.innerHTML = `
+    <p class="ttp-intro">Tidstyps-id för primärknappen på varje utgång, med en valfri kommentar. Ändringar sparas på utgången när du lämnar fältet eller trycker Enter.</p>
+    <table class="ttp-table">
+      <thead><tr><th>Utgång</th><th>Tidstyps-id</th><th>Kommentar</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+
+  out.querySelectorAll('.ttp-input').forEach(input => {
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
+    input.addEventListener('change', () => {
+      const card = findCard(input.dataset.cid);
+      if (!card) return;
+      const field = input.dataset.field || 'primaryTimeTypeId';
+      const value = input.value.trim();
+      input.value = value;
+      if ((card[field] || '') === value) return;
+      runUndoableMutation(() => { card[field] = value; syncExitGroupFrom(card); });
+      updateExitWarning(card);
+      scheduleAutosave();
+      input.classList.add('saved');
+      setTimeout(() => input.classList.remove('saved'), 900);
+    });
+  });
+}
+
+// Bygger om tabellen om panelen är öppen (efter ångra/gör om/import)
+function refreshTimeTypeTableIfOpen() {
+  if (document.getElementById('timetype-panel')?.classList.contains('open')) renderTimeTypeTable();
+}
+
+// Skriver ut tabellen (byggs om först så att den visar aktuella värden)
+function printTimeTypeTable() {
+  renderTimeTypeTable();
+  const title = document.querySelector('#ttp-header h2');
+  const originalTitle = title.textContent;
+  const flowName = String(S.metadata.name || '').trim();
+  if (flowName) title.textContent = 'Tabell tidstyper – ' + flowName;
+  document.body.classList.add('print-timetype');
+  const done = () => {
+    document.body.classList.remove('print-timetype');
+    title.textContent = originalTitle;
+    window.removeEventListener('afterprint', done);
+  };
+  window.addEventListener('afterprint', done);
+  window.print();
+}
+
+function openTimeTypePanel() {
+  renderTimeTypeTable();
+  showSidePanel('timetype-panel');
+}
+
+// Fäller ut panelen "Skapa mall". Namnfältet förifylls med flödets namn
+// så länge användaren inte själv har ändrat det.
+function openCreateTemplatePanel() {
+  const nameInput = document.getElementById('cp-name');
+  if (nameInput && !nameInput.dataset.edited) nameInput.value = S.metadata.name || '';
+  // Visa inte en tidigare skapad mall eller gamla fel – flödet kan ha ändrats sedan dess
+  document.getElementById('cp-result').hidden = true;
+  document.getElementById('cp-error').hidden = true;
+  showSidePanel('create-panel');
+}
+
+// Bygger en formulärmall (1177-formulärmotorns JSON-format) från flödet.
+// Frågorna tas i samma ordning som mall-underlaget: första frågan, sedan följdfrågorna.
+function buildTemplateJson(templateName, formula)
+{
+  const qMap = buildQMap();
+  const qCards = S.cards.filter(c => c.type === 'question' || c.type === 'followup');
+  const first = qCards.find(q => q.type === 'question' && !S.conns.some(c => c.to === q.id)) || qCards[0];
+  const ordered = first ? [first, ...qCards.filter(q => q !== first)] : [];
+  const numberOf = new Map(ordered.map((q, i) => [q.id, i + 1]));
+  const warnings = [];
+
+  // Överordnad fråga och vilka av dess svar som leder till följdfrågan
+  const superiorOf = q => {
+    const links = S.conns.filter(cn => cn.to === q.id)
+      .map(cn => findCard(cn.from))
+      .filter(opt => opt && opt.type === 'option')
+      .flatMap(opt => S.conns.filter(cn => cn.to === opt.id).map(cn => ({ parentId: cn.from, optId: opt.id })));
+    if (!links.length) return null;
+    const parentIds = [...new Set(links.map(l => l.parentId))];
+    if (parentIds.length > 1) warnings.push(`${qMap[q.id]} nås från flera frågor – bara ${qMap[parentIds[0]]} anges som överordnad.`);
+    const parentId = parentIds[0];
+    const answers = orderedAnswers(parentId);
+    return {
+      superiorAnswerAlternativeNumbers: links.filter(l => l.parentId === parentId)
+        .map(l => answers.findIndex(a => a.id === l.optId) + 1).filter(n => n > 0).sort((x, y) => x - y),
+      superiorQuestionNumber: numberOf.get(parentId),
+    };
+  };
+
+  const questions = ordered.map(q => ({
+    questionId: qMap[q.id],
+    subject: q.label || '',
+    description: '',
+    questionNumber: numberOf.get(q.id),
+    code: null,
+    informationURL: null,
+    media: null,
+    input: 'radio',
+    inputUnit: null,
+    gridValue: null,
+    answerMin: null,
+    answerMinLabel: null,
+    answerMax: null,
+    answerMaxLabel: null,
+    answerMaxLength: null,
+    answerPattern: null,
+    answerPlaceholder: null,
+    answerStep: null,
+    mandatory: true,
+    questionAlign: null,
+    minNumberOfChoices: null,
+    maxNumberOfChoices: null,
+    questionSuperior: q === first ? null : superiorOf(q),
+    answerAlternatives: orderedAnswers(q.id).map((opt, i) => ({
+      value: opt.label || '',
+      number: i + 1,
+      helpText: null,
+      code: null,
+      media: null,
+    })),
+    validationEvents: [],
+  }));
+
+  const template = {
+    anonymous: false,
+    category: '',
+    description: null,
+    descriptionInternal: null,
+    completeText: 'Tack för dina svar!',
+    title: 'Titel för formulärmall',
+    name: templateName,
+    language: { code: 'swe', codeSystem: '1.0.639.2' },
+    term: null,
+    media: null,
+    code: null,
+    pages: [{
+      page: {
+        subject: '',
+        description: '',
+        informationURL: '',
+        pageNumber: 1,
+        lastPage: false,
+        media: null,
+        questionBlocks: [{
+          subject: '',
+          description: '',
+          blockNumber: 1,
+          informationURL: '',
+          numberOfQuestions: questions.length,
+          gridConfig: null,
+          media: null,
+          questions,
+        }],
+      },
+      routing: null,
+    }],
+    minNumberOfQuestions: 1,
+    maxNumberOfQuestions: questions.length,
+    minNumberOfPages: 1,
+    maxNumberOfPages: 1,
+    calculationFormulas: [{
+      calculationId: 'external_application',
+      subject: 'Titel på beräkningen',
+      descriptionCareActor: 'Guidade formulär',
+      descriptionSubjectOfCare: null,
+      approvedForSubjectOfCare: false,
+      type: 'inera:form-engine:drools-java:1',
+      license: null,
+      outcomePresentationPrecision: null,
+      formula,
+    }],
+    skipSummaryPage: true,
+  };
+  return { template, warnings };
+}
+
+// Knappen "Skapa mall" – bygger mallen, laddar ner den som JSON och visar innehållet i panelen
+function createTemplate() {
+  // Mallens "name" hämtas från fältet Namn (förifyllt med flödets namn, kan ändras)
+  const nameInput = document.getElementById('cp-name');
+  const name = (nameInput?.value || '').trim();
+  if (!name) {
+    toast('Ange ett namn på mallen');
+    nameInput?.focus();
+    return;
+  }
+
+  const errorBox = document.getElementById('cp-error');
+  const resultBox = document.getElementById('cp-result');
+  errorBox.hidden = true;
+
+  // Samma kontroll och samma skript som "Generera skript" – vid fel skapas ingen fil
+  const validation = validateModel();
+  applyValidationState(validation);
+  renderValidation(validation);
+  const formula = validation.isValid ? generateDrools() : '';
+  const problems = validation.isValid
+    ? (findPaths(buildQMap()).length === 0 ? ['Skriptet kunde inte genereras: inga kompletta vägar från fråga till utgång hittades.'] : [])
+    : validation.errors.map(e => e.message);
+  if (problems.length) {
+    resultBox.hidden = true;
+    errorBox.innerHTML = '<strong>Mallen skapades inte – skriptet kunde inte genereras</strong>'
+      + 'Rätta följande och försök igen:<ul>' + problems.map(m => `<li>${escapeHtml(m)}</li>`).join('') + '</ul>';
+    errorBox.hidden = false;
+    toast('Mallen skapades inte: skriptet innehåller fel');
+    return;
+  }
+
+  const { template, warnings } = buildTemplateJson(name, formula);
+  const json = JSON.stringify(template, null, 4);
+
+  const safeName = name.replace(/[åä]/g, 'a').replace(/ö/g, 'o').replace(/[ÅÄ]/g, 'A').replace(/Ö/g, 'O')
+    .replace(/[^a-z0-9-_]+/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'formularmall';
+  const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${safeName}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+
+  document.getElementById('cp-json').textContent = json;
+  document.getElementById('cp-result').hidden = false;
+  toast(warnings.length ? 'Mallen skapades med varning: ' + warnings.join(' ') : 'Mallen skapades', !warnings.length);
+}
+
+// Id:n för frågekort som är ihopfällda i mall-underlaget
+const _tpCollapsed = new Set();
+
+// Bygger mall-underlaget: ett kort per fråga – första frågan först, sedan följdfrågorna i Q-ordning
+function renderTemplateBasis() {
+  const out = document.getElementById('tp-output');
+  const qMap = buildQMap();
+  const qCards = S.cards.filter(c => c.type === 'question' || c.type === 'followup');
+  const first = qCards.find(q => q.type === 'question' && !S.conns.some(c => c.to === q.id)) || qCards[0];
+  const ordered = first ? [first, ...qCards.filter(q => q !== first)] : [];
+
+  if (ordered.length === 0) {
+    out.innerHTML = `<div class="tp-empty">Det finns inga frågor att visa.</div>`;
+    return;
+  }
+
+  // Vart ett svar leder: följdfråga (Qn) eller utgång
+  const targetText = optCard => {
+    const next = findCard(S.conns.find(cn => cn.from === optCard.id)?.to);
+    if (!next) return '<span class="tp-muted">ingen koppling</span>';
+    if (next.type === 'exit') return 'Utgång ' + escapeHtml(next.label || '—');
+    return escapeHtml(qMap[next.id] || '') + (next.label ? ' – ' + escapeHtml(next.label) : '');
+  };
+
+  // Svarsnumret (Svar N) för ett svar under en fråga – samma ordning som på canvas
+  const answerNumber = (qId, optId) => orderedAnswers(qId).findIndex(a => a.id === optId) + 1;
+
+  // Vilka frågor (och svar) som leder till denna fråga
+  const parentsOf = q => S.conns.filter(cn => cn.to === q.id)
+    .map(cn => findCard(cn.from))
+    .filter(opt => opt && opt.type === 'option')
+    .flatMap(opt => S.conns.filter(cn => cn.to === opt.id).map(cn => {
+      const pq = findCard(cn.from);
+      return pq ? { pq, opt, num: answerNumber(pq.id, opt.id) } : null;
+    }))
+    .filter(Boolean);
+
+  const val = (text, placeholder) => text
+    ? `<div class="tp-field">${escapeHtml(text)}</div>`
+    : `<div class="tp-field tp-ph">${placeholder}</div>`;
+
+  const divider = `<div class="tp-divider" aria-hidden="true"><span class="tp-divider-line"></span><span class="tp-plus">+</span></div>`;
+
+  out.innerHTML = ordered.map(q => {
+    // Samma ordning som svarsnumreringen på canvas (updateCaseBadges)
+    const answers = orderedAnswers(q.id).map(c => ({ card: c }));
+    const parents = q === first ? [] : parentsOf(q);
+    const collapsed = _tpCollapsed.has(q.id);
+
+    // ── Kortet – minimerat visas bara rubrikraden ──
+    const answerRows = (answers.length ? answers : [null]).map((a, i) => `
+          <div class="tp-opt">
+            <span class="tp-radio" aria-hidden="true"></span>
+            <div class="tp-opt-main">
+              ${val(a?.card.label, 'Skriv svarsalternativ')}
+              ${a ? `<div class="tp-opt-target">Svar ${i + 1} → ${targetText(a.card)}</div>` : ''}
+            </div>
+            <span class="tp-opt-icons" aria-hidden="true">⌄ ⌃ 🗑 ⊞</span>
+          </div>`).join('');
+
+    const followSec = q === first ? '' : `
+          <div class="tp-sec">
+            <div class="tp-label">Följdfråga till</div>
+            <div class="tp-help">En följdfråga visas beroende på vilket svarsalternativ som valts i en föregående fråga i samma avsnitt (valfritt).</div>
+            ${(parents.length
+              ? parents.map(p => `${escapeHtml(qMap[p.pq.id] || '')}${p.pq.label ? ' – ' + escapeHtml(p.pq.label) : ''} <span class="tp-parent-ans">(Svar ${p.num}${p.opt.label ? ': ' + escapeHtml(p.opt.label) : ''})</span>`)
+              : ['<span class="tp-ph">Ingen följdfråga</span>']).map(t => `
+            <div class="tp-select"><span class="tp-select-val">${t}</span><span class="tp-select-arrow" aria-hidden="true">⌄</span></div>`).join('')}
+          </div>`;
+
+    const card = `
+      <div class="tp-card">
+        <div class="tp-card-head" role="button" tabindex="0" aria-expanded="${!collapsed}" title="Klicka för att minimera eller expandera">
+          <span>Frågetyp: Enval</span>
+          <span class="tp-type">${escapeHtml(qMap[q.id] || '')} · ${q === first ? 'Första frågan' : 'Följdfråga'}</span>
+          <span class="tp-toggle" aria-hidden="true">⌃</span>
+        </div>
+        <div class="tp-body">
+          <div class="tp-sec">
+            <div class="tp-label">Bild</div>
+            <div class="tp-help">Rekommendation. max 500 kb, 960x700 px (valfritt).</div>
+            <span class="tp-upload"><span class="tp-upload-icon" aria-hidden="true">🖼</span>Ladda upp en bild</span>
+          </div>
+          <div class="tp-sec">
+            <div class="tp-label">Fråga *</div>
+            <div class="tp-help">Här anger du en fråga.</div>
+            ${val(q.label, 'Skriv in din fråga')}
+          </div>
+          <div class="tp-sec">
+            <div class="tp-label">Beskrivning</div>
+            <div class="tp-help">Här kan du beskriva frågan ytterligare.</div>
+            <div class="tp-field tp-area tp-ph">Skriv text (valfritt)</div>
+          </div>
+          <div class="tp-sec">
+            <div class="tp-label">Svarsalternativ *</div>
+            <div class="tp-help">Här anger du olika svarsalternativ.</div>
+            ${answerRows}
+          </div>
+          <div class="tp-sec">
+            <div class="tp-check"><span class="tp-checkbox" aria-hidden="true">✓</span>Frågan ska vara obligatorisk</div>
+            <div class="tp-help">Om frågan inte är obligatorisk bör "Vet ej" finnas som svarsalternativ</div>
+          </div>
+          ${followSec}
+          <div class="tp-sec">
+            <div class="tp-label-row"><span class="tp-label">Frågans ID</span><span class="tp-link">Avancerat</span></div>
+            <div class="tp-help">Här kan du ange ett unikt ID för frågan. Används exempelvis vid resultatberäkning.</div>
+            ${val(qMap[q.id], 'Här anger du ett unikt ID för frågan (valfritt)')}
+          </div>
+        </div>
+      </div>`;
+
+    return `<div class="tp-item${collapsed ? ' collapsed' : ''}" data-cid="${escapeAttr(q.id)}">${card}</div>`;
+  }).join(divider) + divider + renderTemplateExits(val);
+
+  // Klick på förhandsgranskningen fäller ut, klick på kortets rubrikrad fäller ihop
+  const toggleItem = target => {
+    const head = target.closest('.tp-card-head');
+    const item = head?.closest('.tp-item');
+    if (!item) return false;
+    const collapsed = item.classList.toggle('collapsed');
+    if (collapsed) _tpCollapsed.add(item.dataset.cid); else _tpCollapsed.delete(item.dataset.cid);
+    head.setAttribute('aria-expanded', String(!collapsed));
+    return true;
+  };
+  out.onclick = e => { toggleItem(e.target); };
+  out.onkeydown = e => { if ((e.key === 'Enter' || e.key === ' ') && toggleItem(e.target)) e.preventDefault(); };
+}
+
+// Utgångarna i mall-underlaget – samma innehåll och utseende som dialogen för utgångens detaljer,
+// men skrivskyddat. Sorteras efter utgångens värde.
+function renderTemplateExits(val)
+{
+  const exits = S.cards.filter(c => c.type === 'exit')
+    .map((c, i) => ({ c, i, n: Number(String(c.label || '').trim()) }))
+    .sort((a, b) => (Number.isFinite(a.n) ? a.n : Infinity) - (Number.isFinite(b.n) ? b.n : Infinity) || a.i - b.i)
+    .map(x => x.c);
+  if (!exits.length) return '';
+
+  return `<div class="tp-section-title">Utgångar</div>` + exits.map(e => {
+    const value = String(e.label || '').trim() || '?';
+    const collapsed = _tpCollapsed.has(e.id);
+    const problems = exitDetailProblems(e);
+    const btnRow = (text, which) => {
+      const t = exitButtonTarget(e, which);
+      // Primärknappen visar samma adress som Testa-knappen i utgångens dialog (eller varför den saknas)
+      const urlField = which === 'primary'
+        ? (r => r.url ? val(r.url, '') : `<div class="tp-field tp-ph">${escapeHtml(r.error)}</div>`)(resolveButtonUrl(e, 'primary'))
+        : val(t.value, t.fromSettings ? 'Ingen URL för Avbryt angiven under Inställningar' : 'Ange URL för knappen');
+      const timeTypeNote = which === 'primary' && t.useSettings && t.value
+        ? `<div class="tp-opt-target">Tidstyps-id: ${escapeHtml(t.value)}</div>` : '';
+      return `
+            <div class="ex-check"><span class="tp-checkbox-sm${t.useSettings ? '' : ' off'}" aria-hidden="true">✓</span> Använd URL från Inställningar</div>
+            <div class="ex-btn-row">
+              ${val(text, 'Ange knapptext')}
+              <div>${urlField}${timeTypeNote}</div>
+            </div>`;
+    };
+    return `
+      <div class="tp-item tp-exit${collapsed ? ' collapsed' : ''}" data-cid="${escapeAttr(e.id)}">
+        <div class="tp-card">
+          <div class="tp-card-head" role="button" tabindex="0" aria-expanded="${!collapsed}" title="Klicka för att minimera eller expandera">
+            <span>Utgång ${escapeHtml(value)}</span>
+            ${problems.length ? '<span class="tp-exit-warn" title="Uppgifter saknas">!</span>' : ''}
+            <span class="tp-type">Utgång</span>
+            <span class="tp-toggle" aria-hidden="true">⌃</span>
+          </div>
+          <div class="tp-body">
+            <p class="ex-intro">Dessa inställningar kommer att appliceras för utgång${escapeHtml(value)}.</p>
+            <p class="ex-intro">Om tillhörande formulärmall innehåller en beräkning som kan ge resultatet ${escapeHtml(value)} behöver du som minst ange en informationstext ELLER ange URL och text för primärknappen.</p>
+            <div class="ex-sec">
+              <div class="ex-label">Informationstext</div>
+              <div class="ex-help">Texten visas i sista steget innan invånaren länkas vidare till annan URL, exempelvis Tidboken. Om ingen text anges kommer ingen text att visas. Formatering görs med markdown.</div>
+              ${e.meddelande ? `<div class="tp-field tp-area">${escapeHtml(e.meddelande)}</div>` : '<div class="tp-field tp-area"></div>'}
+            </div>
+            <div class="ex-sec">
+              <div class="ex-label">Primärknapp</div>
+              <div class="ex-help">Om inte knapptext och URL anges kommer knapp från "Standardflöde" att användas.</div>
+              ${btnRow(e.primaryButtonText, 'primary')}
+            </div>
+            <div class="ex-sec">
+              <div class="ex-label">Sekundärknapp</div>
+              <div class="ex-help">Om inte knapptext och URL anges kommer ingen sekundärknapp att visas.</div>
+              ${btnRow(e.secondaryButtonText, 'secondary')}
+            </div>
+            ${problems.length ? `<div class="ex-error">${problems.map(escapeHtml).join(' ')}</div>` : ''}
+          </div>
+        </div>
+      </div>`;
+  }).join('<div class="tp-exit-gap"></div>');
+}
+
+// Skriver ut hela flödet: allt utom canvas döljs och flödet skalas/centreras så att det ryms på en liggande A4.
+// Vyns zoom och panorering påverkas inte – de återställs efter utskriften.
+const PRINT_FLOW_W = 1047, PRINT_FLOW_H = 700, PRINT_FLOW_PAD = 16;   // A4 liggande minus 10 mm marginal, i CSS-pixlar
+
+function printFlow() {
+  if (!S.cards.length) { toast('Det finns inget flöde att skriva ut'); return; }
+  cancelConn();
+  document.body.classList.add('print-flow');
+
+  const titleEl = document.getElementById('print-title');
+  const flowName = String(S.metadata.name || '').trim();
+  titleEl.textContent = flowName ? 'Flöde – ' + flowName : 'Flöde';
+
+  // Flödets yta i världskoordinater (kortens position + storlek)
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  S.cards.forEach(c => {
+    const el = document.getElementById(getCardDomId(c.id));
+    if (!el) return;
+    minX = Math.min(minX, c.x); minY = Math.min(minY, c.y);
+    maxX = Math.max(maxX, c.x + el.offsetWidth); maxY = Math.max(maxY, c.y + el.offsetHeight);
+  });
+  const pad = PRINT_FLOW_PAD, titleH = 34;
+  const availW = PRINT_FLOW_W - 2 * pad, availH = PRINT_FLOW_H - titleH - 2 * pad;
+  const bw = Math.max(1, maxX - minX + 2 * 12), bh = Math.max(1, maxY - minY + 2 * 12);   // 12 px luft för portar och pilar
+  const scale = Math.min(1, availW / bw, availH / bh);
+  const tx = pad + (availW - bw * scale) / 2 - (minX - 12) * scale;
+  const ty = titleH + pad - (minY - 12) * scale;
+  document.getElementById('world').style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
+
+  const done = () => {
+    document.body.classList.remove('print-flow');
+    applyTX();
+    window.removeEventListener('afterprint', done);
+  };
+  window.addEventListener('afterprint', done);
+  window.print();
+}
+
+// Skriver ut mall-underlaget så som det visas (minimerade kort skrivs ut minimerade)
+function printTemplateBasis() {
+  renderTemplateBasis();
+  const title = document.querySelector('#tp-header h2');
+  const flowName = String(S.metadata.name || '').trim();
+  const originalTitle = title.textContent;
+  if (flowName) title.textContent = 'Mall-underlag – ' + flowName;
+  document.body.classList.add('print-template');
+  const done = () => {
+    document.body.classList.remove('print-template');
+    title.textContent = originalTitle;
+    window.removeEventListener('afterprint', done);
+  };
+  window.addEventListener('afterprint', done);
+  window.print();
+}
+
+// Fäller ut panelen för mall-underlag
+function openTemplatePanel() {
+  renderTemplateBasis();
+  showSidePanel('template-panel');
+}
+
+let previewHistory = [];
+
+function startFlowTest() {
+  const roots = S.cards.filter(c => c.type === 'question' && incomingTo(c.id).length === 0);
+  if (roots.length === 0) {
+    toast("Ingen rotfråga hittades! Skapa en fråga som saknar inkommande kopplingar.");
+    return;
+  }
+  
+  previewHistory = [];
+  document.getElementById('preview-overlay').classList.add('open');
+  renderFormStep(roots[0].id);
+}
+
+function renderFormStep(nodeId) {
+  const node = findCard(nodeId);
+  const content = document.getElementById('preview-content');
+  const backBtn = document.getElementById('btn-prev-back');
+  
+  if (!node) return;
+  backBtn.style.display = previewHistory.length > 0 ? 'inline-block' : 'none';
+
+  if (node.type === 'exit') {
+    // Knappar visas som länkar när URL:en är en webbadress
+    const btnHtml = (text, which) => {
+      const t = exitButtonTarget(node, which);
+      if (t.isTimeType) {
+        text = String(text || '').trim();
+        if (!text && !t.value) return '<span class="result-empty">Ej angiven</span>';
+        return escapeHtml(text || '(ingen knapptext)')
+          + `<div class="result-url">Tidstyps-id: ${t.value ? escapeHtml(t.value) : '<span class="result-empty">ej angivet</span>'} · URL från Inställningar${S.settings.bookingUrl ? ': ' + escapeHtml(S.settings.bookingUrl) : ' (ej angiven)'}</div>`;
+      }
+      let url = t.value;
+      text = String(text || '').trim();
+      if (!text && !url) return '<span class="result-empty">Ej angiven</span>';
+      const shown = escapeHtml(text || url);
+      const link = /^https?:\/\//i.test(url) ? `<a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${shown}</a>` : shown;
+      return link + (text && url ? `<div class="result-url">${escapeHtml(url)}</div>` : '');
+    };
+    const meddelande = String(node.meddelande || '').trim();
+    content.innerHTML = `<h1 class="form-title">Flöde slutfört!</h1><p style="color:var(--exit-color); font-size:18px; font-weight:bold;">Resultat: ${escapeHtml(node.label)}</p>
+      <div class="result-fields">
+        <div class="result-field">
+          <div class="result-label">Informationstext</div>
+          <div class="result-value result-msg">${meddelande ? escapeHtml(meddelande) : '<span class="result-empty">Ej angiven</span>'}</div>
+        </div>
+        <div class="result-field">
+          <div class="result-label">Primärknapp</div>
+          <div class="result-value">${btnHtml(node.primaryButtonText, 'primary')}</div>
+        </div>
+        <div class="result-field">
+          <div class="result-label">Sekundärknapp</div>
+          <div class="result-value">${btnHtml(node.secondaryButtonText, 'secondary')}</div>
+        </div>
+      </div>
+      <p style="color:var(--text-dim); margin-top:10px; font-size:12px;">Detta är slutet på beslutsträdet.</p>`;
+    return;
+  }
+
+  let html = `<h1 class="form-title">${escapeHtml(node.label)}</h1><div class="form-options">`;
+  const options = outgoingFrom(node.id).map(c => findCard(c.to)).filter(c => c && c.type === 'option');
+  
+  if (options.length === 0) {
+    html += `<p style="color:#ef4444; font-size: 13px;">Denna fråga har inga svarsalternativ kopplade till sig.</p>`;
+    html += `</div>`;
+    content.innerHTML = html;
+  } else {
+    html += `</div>`;
+    content.innerHTML = html;
+    const formOpts = content.querySelector('.form-options');
+    options.forEach(opt => {
+      const lbl = document.createElement('label');
+      lbl.className = 'form-opt-item';
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = 'preview_q';
+      radio.addEventListener('click', () => handlePreviewSelect(opt.id, node.id));
+      const span = document.createElement('span');
+      span.textContent = opt.label;
+      lbl.appendChild(radio);
+      lbl.appendChild(span);
+      formOpts.appendChild(lbl);
+    });
+  }
+}
+
+function handlePreviewSelect(optId, currentNodeId) {
+  const nextConn = outgoingFrom(optId)[0];
+  if (nextConn) {
+    previewHistory.push(currentNodeId);
+    setTimeout(() => renderFormStep(nextConn.to), 250);
+  } else {
+    toast("Detta svarsalternativ är inte kopplat någonstans!");
+  }
+}
+
+function goBackPreview() {
+  if (previewHistory.length > 0) {
+    const prevId = previewHistory.pop();
+    renderFormStep(prevId);
+  }
+}
+
+function closePreview() {
+  document.getElementById('preview-overlay').classList.remove('open');
+  previewHistory = [];
+}
+
+// ─────────────────────────────────────────────
+//  MOBILE FAB
+// ─────────────────────────────────────────────
+let _fabOpen = false;
+
+function toggleFab() {
+  _fabOpen = !_fabOpen;
+  document.getElementById('fab-toggle').classList.toggle('open', _fabOpen);
+  document.getElementById('fab-items').classList.toggle('open', _fabOpen);
+}
+
+function closeFab() {
+  _fabOpen = false;
+  document.getElementById('fab-toggle').classList.remove('open');
+  document.getElementById('fab-items').classList.remove('open');
+}
+
+function buildFabItems() {
+  const bar   = document.getElementById('mobile-fab-bar');
+  const items = document.getElementById('fab-items');
+  if (!bar || !items) return;
+
+  bar.classList.remove('hidden');
+
+  const flowDefs = [
+    { type: 'question', cls: 'q',   label: 'Fråga' },
+    { type: 'option',   cls: 'opt', label: 'Svarsalternativ' },
+    { type: 'followup', cls: 'fq',  label: 'Följdfråga' },
+    { type: 'exit',     cls: 'ex',  label: 'Utgång' },
+  ];
+
+  items.innerHTML = flowDefs.map(d => `
+    <button class="fab-item ${d.cls}" onclick="addCardCenter('${d.type}'); closeFab();">
+      <div class="fab-dot"></div>${d.label}
+    </button>`).join('');
+}
+
+// ─────────────────────────────────────────────
+//  MANUELL REGRESSIONSCHECK v1.1
+//  1) Lägg till kort: Ctrl+Z ska ta bort kortet, Ctrl+Y ska återställa det.
+//  2) Skapa Fråga → Alternativ → Utgång: validering ska vara OK och Drools ska genereras.
+//  3) Exportera JSON, ladda om appen och importera samma fil utan dataförlust.
+//  4) Importera trasig JSON: appen ska visa fel och inte krascha.
+// ─────────────────────────────────────────────
+
+// ─────────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────────
+function isMobile() { return window.innerWidth <= 768; }
+
+function updateCanvasHint() {
+  const hint = document.getElementById('canvas-hint');
+  if (!hint) 
+    return;
+  hint.innerHTML = `
+      <svg class="hint-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 10v5M12 7.5v.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <strong>Börja med en enkel kedja</strong><br>
+      Lägg till <strong>Fråga</strong>, <strong>Svarsalternativ</strong> och <strong>Utgång</strong>.<br>
+      Koppla korten: Fråga → Svarsalternativ → Utgång.
+    `;
+
+  // Dölj tipset när det finns kort
+  hint.classList.toggle('hidden', S.cards.length > 0);
+}
+
+// Ändra bredden på panelerna (Generera skript / Mall-underlag) genom att dra i vänsterkanten.
+// Bredden sparas per panel i webbläsaren.
+const PANEL_DEFAULT_W = 440, PANEL_MIN_W = 300;
+
+function setPanelWidth(panel, w)
+{
+  const max = Math.max(PANEL_MIN_W, window.innerWidth - 240);
+  const width = Math.round(Math.min(max, Math.max(PANEL_MIN_W, w)));
+  panel.style.setProperty('--panel-w', width + 'px');
+  return width;
+}
+
+function initPanelResize()
+{
+  SIDE_PANELS.forEach(id => {
+    const panel = document.getElementById(id);
+    const handle = panel?.querySelector('.panel-resize');
+    if (!handle) return;
+    const key = 'panelWidth.' + id;
+
+    try { const saved = Number(localStorage.getItem(key)); if (saved) setPanelWidth(panel, saved); } catch (e) {}
+
+    handle.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+      const startX = e.clientX, startW = panel.getBoundingClientRect().width;
+      panel.classList.add('resizing');
+      document.body.classList.add('panel-resizing');
+      let width = startW;
+      const onMove = ev => { width = setPanelWidth(panel, startW + (startX - ev.clientX)); };
+      const onUp = () => {
+        handle.removeEventListener('pointermove', onMove);
+        handle.removeEventListener('pointerup', onUp);
+        handle.removeEventListener('pointercancel', onUp);
+        panel.classList.remove('resizing');
+        document.body.classList.remove('panel-resizing');
+        try { localStorage.setItem(key, String(width)); } catch (e) {}
+      };
+      handle.addEventListener('pointermove', onMove);
+      handle.addEventListener('pointerup', onUp);
+      handle.addEventListener('pointercancel', onUp);
+    });
+
+    handle.addEventListener('dblclick', () => {
+      panel.style.removeProperty('--panel-w');
+      try { localStorage.removeItem(key); } catch (e) {}
+    });
+  });
+}
+
+function initMobileGestures() {
+  // Swipe down on panel headers to close panel (mobile)
+  ['dp-header', 'tp-header', 'cp-header', 'ttp-header'].forEach(id => {
+    const header = document.getElementById(id);
+    let touchStartY = 0;
+    header.addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; }, { passive: true });
+    header.addEventListener('touchend', e => {
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      if (dy > 60) closePanel();
+    }, { passive: true });
+  });
+}
+
+function init() 
+{
+  // Reduce initial scale on mobile so cards don't appear giant
+  resetViewportForDevice();
+  buildMarkers(); 
+  normalizeModelIds(); 
+  renderValidation({errors:[],warnings:[],isValid:false,completePathCount:0});
+  updateAutosaveUi(); 
+  updateUndoUi(); 
+  updateCanvasHint(); 
+  buildFabItems();
+  initMobileGestures();
+  initPanelResize();
+  initExitModal();
+  initSettingsDialog();
+  updateFlowNameUi();
+
+  const importInput = document.getElementById('import-file');
+  if (importInput) 
+  { 
+    importInput.addEventListener('change', e => { const file = e.target.files?.[0]; importModelFromFile(file); importInput.value = ''; }); 
+  }
+
+  stampModelUpdated();
+  renderValidation(validateModel());
+
+  if (S.cards.length === 0) {
+    const canvasRect = $canvas().getBoundingClientRect();
+    const startPoint = toWorld(canvasRect.left + canvasRect.width / 2, canvasRect.top + 70);
+    addCard('question', startPoint.x - CARD_CFG.question.w / 2, startPoint.y);
+    renderValidation(validateModel());
+  }
+}
+
+// Öppnar dialogen för flödets globala inställningar
+const HSA_ID_MAX = 50;
+const BOOKING_URL_MAX = 2000;
+const CANCEL_URL_MAX = 2000;
+
+function openSettingsDialog()
+{
+  document.getElementById('settingHsaId').value = S.settings.hsaId || '';
+  document.getElementById('settingBookingUrl').value = S.settings.bookingUrl || '';
+  document.getElementById('settingCancelUrl').value = S.settings.cancelUrl || '';
+  document.getElementById('settingsDialog').showModal();
+}
+
+// Spara: för över dialogens värden till flödets inställningar. Avbryt/Esc stänger utan att spara.
+function initSettingsDialog()
+{
+  const dialog = document.getElementById('settingsDialog');
+  document.getElementById('settingsForm').addEventListener('submit', e => {
+    e.preventDefault();
+    S.settings.hsaId = document.getElementById('settingHsaId').value.trim().slice(0, HSA_ID_MAX);
+    S.settings.bookingUrl = document.getElementById('settingBookingUrl').value.trim().slice(0, BOOKING_URL_MAX);
+    S.settings.cancelUrl = document.getElementById('settingCancelUrl').value.trim().slice(0, CANCEL_URL_MAX);
+    stampModelUpdated();
+    scheduleAutosave();
+    dialog.close();
+    toast('Inställningarna sparades', true);
+  });
+  document.getElementById('settingsCancelBtn').addEventListener('click', () => dialog.close());
+}
+
+// ── Utgångar med samma siffra delar inställningar ──
+// Fälten som hålls lika inom en grupp (EXIT_DETAIL_FIELDS/EXIT_FLAG_FIELDS definieras nedan)
+function exitSyncFields() { return [...EXIT_DETAIL_FIELDS, ...EXIT_FLAG_FIELDS, 'comment']; }
+
+// Övriga utgångar med samma siffra som card
+function exitSiblings(card)
+{
+  const value = String(card.label || '').trim();
+  if (!value) return [];
+  return S.cards.filter(c => c.type === 'exit' && c !== card && String(c.label || '').trim() === value);
+}
+
+function sameExitSettings(a, b)
+{
+  return exitSyncFields().every(f => (a[f] ?? '') === (b[f] ?? ''));
+}
+
+// Kopierar card:s inställningar till övriga utgångar med samma siffra
+function syncExitGroupFrom(card)
+{
+  exitSiblings(card).forEach(c => {
+    exitSyncFields().forEach(f => { c[f] = card[f]; });
+    updateExitWarning(c);
+  });
+}
+
+// När en utgång får en siffra som redan används tar den över gruppens inställningar
+function adoptExitGroupSettings(card)
+{
+  const source = exitSiblings(card)[0];
+  if (!source || sameExitSettings(source, card)) return false;
+  exitSyncFields().forEach(f => { card[f] = source[f]; });
+  updateExitWarning(card);
+  return true;
+}
+
+// Id för det utgångskort som redigeras just nu i modalen
+let _exitEditCardId = null;
+
+// Fälten i utgångsdialogen = egenskaperna på utgångskortet (tidstyp = primärknappens URL)
+const EXIT_DETAIL_FIELDS = ['meddelande', 'primaryButtonText', 'tidstyp', 'primaryTimeTypeId', 'secondaryButtonText', 'secondaryButtonUrl'];
+// Kryssrutorna "Använd URL från Inställningar"
+const EXIT_FLAG_FIELDS = ['primaryUseSettingsUrl', 'secondaryUseSettingsUrl'];
+
+// Primärknappen – ikryssad: visa fältet Tidstyps-id, ej ikryssad: visa fältet för knappens egen URL.
+// Sekundärknappen – ikryssad: visa URL för Avbryt från Inställningar (skrivskyddad), ej ikryssad: knappens egen URL.
+function syncExitUrlFields()
+{
+  const $ = id => document.getElementById(id);
+  const primarySettings = $('primaryUseSettingsUrl').checked;
+  $('primaryTimeTypeId').hidden = !primarySettings;
+  $('primaryTimeTypeHelp').hidden = !primarySettings;
+  $('primaryTimeTypeId').closest('.ex-btn-row').classList.toggle('timetype-mode', primarySettings);
+  $('tidstyp').hidden = primarySettings;
+
+  const secondarySettings = $('secondaryUseSettingsUrl').checked;
+  $('secondarySettingsUrl').value = S.settings.cancelUrl || '';
+  $('secondarySettingsUrl').hidden = !secondarySettings;
+  $('secondaryButtonUrl').hidden = secondarySettings;
+}
+
+// Anropas EN gång från init() – registrerar modalens lyssnare
+function initExitModal()
+{
+  const modal = document.getElementById('exitMessageDialog');
+  const form  = document.getElementById('modalForm');
+
+  document.getElementById('closeBtn').addEventListener('click', () => modal.close());
+  EXIT_FLAG_FIELDS.forEach(f => document.getElementById(f).addEventListener('change', syncExitUrlFields));
+  ['primary', 'secondary'].forEach(which => {
+    const btn = document.getElementById(which + 'TestBtn');
+    btn.addEventListener('click', () => testExitButtonUrl(which));
+    // Hovringstexten räknas fram när muspekaren/fokus kommer till knappen så den alltid är aktuell
+    btn.addEventListener('mouseenter', () => updateExitTestTitle(which));
+    btn.addEventListener('focus', () => updateExitTestTitle(which));
+  });
+
+  form.addEventListener('submit', e =>
+  {
+    e.preventDefault();
+    const card = findCard(_exitEditCardId);
+    if (card)
+    {
+      const values = Object.fromEntries(EXIT_DETAIL_FIELDS.map(f => [f, document.getElementById(f).value.trim()]));
+      EXIT_FLAG_FIELDS.forEach(f => { values[f] = document.getElementById(f).checked; });
+      const problems = exitDetailProblems(values);
+      const errorBox = document.getElementById('exError');
+      if (problems.length)
+      {
+        errorBox.textContent = problems.join(' ');
+        errorBox.hidden = false;
+        return;
+      }
+      runUndoableMutation(() => { Object.assign(card, values); syncExitGroupFrom(card); });
+      updateExitWarning(card);
+      scheduleAutosave();
+    }
+    modal.close();
+  });
+
+  // Körs vid Avbryt, Spara och Esc. Fälten töms inte här – onExitProperties fyller alltid i dem på nytt,
+  // och close-händelsen kommer asynkront (skulle annars kunna tömma en dialog som redan öppnats igen).
+  modal.addEventListener('close', () =>
+  {
+    document.getElementById('exError').hidden = true;
+  });
+}
+
+// Primärknappens URL när "Använd URL från Inställningar" är ikryssad:
+// URL till tidbokningstjänst + "&terms=false&timetypecode=" + tidstyps-id
+function buildBookingUrl(timeTypeId)
+{
+  const base = String(S.settings.bookingUrl || '').trim();
+  return base + '&terms=false&timetypecode=' + String(timeTypeId || '').trim();
+}
+
+// Räknar fram adressen en knapp på utgången leder till – samma regler för Testa-knappen och mall-underlaget.
+// d = utgångens data (kortet eller dialogens aktuella värden). Returnerar { url } eller { error, focus }.
+function resolveButtonUrl(d, which)
+{
+  const t = exitButtonTarget(d, which);
+  let url;
+  if (which === 'primary' && t.useSettings) {
+    if (!String(S.settings.bookingUrl || '').trim()) return { error: 'Ange URL till tidbokningstjänst under Inställningar först' };
+    if (!t.value) return { error: 'Ange tidstyps-id för primärknappen först', focus: 'primaryTimeTypeId' };
+    url = buildBookingUrl(t.value);
+  } else if (which === 'secondary' && t.useSettings) {
+    // Sekundärknappen med ikryssad ruta: URL för Avbryt från Inställningar
+    url = t.value;
+    if (!url) return { error: 'Ange URL för Avbryt under Inställningar först' };
+  } else {
+    url = t.value;
+    if (!url) return { error: 'Ange en URL för knappen först', focus: which === 'primary' ? 'tidstyp' : 'secondaryButtonUrl' };
+  }
+  if (!/^https?:\/\//i.test(url)) return { error: 'URL:en måste börja med http:// eller https://' };
+  return { url };
+}
+
+// Testa-knappens adress utifrån det som just nu står i dialogen
+function resolveExitTestUrl(which)
+{
+  const $ = id => document.getElementById(id);
+  return resolveButtonUrl({
+    primaryUseSettingsUrl: $('primaryUseSettingsUrl').checked,
+    primaryTimeTypeId: $('primaryTimeTypeId').value,
+    tidstyp: $('tidstyp').value,
+    secondaryUseSettingsUrl: $('secondaryUseSettingsUrl').checked,
+    secondaryButtonUrl: $('secondaryButtonUrl').value,
+  }, which);
+}
+
+// Hovringstext på Testa: visar adressen man hoppar ut till (eller vad som saknas)
+function updateExitTestTitle(which)
+{
+  const r = resolveExitTestUrl(which);
+  document.getElementById(which + 'TestBtn').title = r.url ? 'Öppnar i ny flik: ' + r.url : r.error;
+}
+
+// Knappen Testa: öppnar knappens adress i en ny flik
+function testExitButtonUrl(which)
+{
+  const r = resolveExitTestUrl(which);
+  if (r.error) {
+    toast(r.error);
+    if (r.focus) document.getElementById(r.focus).focus();
+    return;
+  }
+  window.open(r.url, '_blank', 'noopener,noreferrer');
+}
+
+// Anropas vid varje klick på ✎ – öppnar bara modalen, lägger inte till lyssnare
+function onExitProperties(button)
+{
+  const card = findCard(button.dataset.cid);
+  if (!card)
+    return;
+  _exitEditCardId = card.id;
+  EXIT_DETAIL_FIELDS.forEach(f => { document.getElementById(f).value = card[f] || ''; });
+  document.getElementById('primaryUseSettingsUrl').checked = exitButtonTarget(card, 'primary').useSettings;
+  document.getElementById('secondaryUseSettingsUrl').checked = exitButtonTarget(card, 'secondary').useSettings;
+
+  // Tomma fält förifylls från närmast föregående utgång (i skapandeordning) som har ett värde i samma fält:
+  // informationstext samt text och URL för båda knapparna
+  const exits = S.cards.filter(c => c.type === 'exit');
+  const previous = exits.slice(0, exits.indexOf(card)).reverse();
+  EXIT_DETAIL_FIELDS.forEach(f => {
+    if (String(card[f] || '').trim()) return;
+    const source = previous.find(c => String(c[f] || '').trim());
+    if (source) document.getElementById(f).value = source[f];
+  });
+  syncExitUrlFields();
+  const value = String(card.label || '').trim() || '?';
+  document.getElementById('dialogRubrik').textContent = 'Utgång ' + value;
+  const groupSize = exitSiblings(card).length + 1;
+  document.getElementById('exIntro1').textContent = `Dessa inställningar appliceras för utgång ${value}.`
+    + (groupSize > 1 ? ` De gäller alla ${groupSize} utgångar med värdet ${value}.` : '');
+  document.getElementById('exError').hidden = true;
+  document.getElementById('exitMessageDialog').showModal();
+}
+
+// Tooltip som sammanställer utgångens uppgifter – byggs vid varje hover så den alltid är aktuell
+function showExitTooltip(button)
+{
+  const card = findCard(button.dataset.cid);
+  if (!card)
+    return;
+
+  let tip = document.getElementById('exitTooltip');
+  if (!tip)
+  {
+    tip = document.createElement('div');
+    tip.id = 'exitTooltip';
+    tip.setAttribute('role', 'tooltip');
+    document.body.appendChild(tip);
+  }
+  tip.replaceChildren();
+
+  const title = document.createElement('div');
+  title.className = 'tt-title';
+  title.textContent = 'Utgång ' + (card.label || '(namnlös)');
+  tip.appendChild(title);
+
+  const addRow = (key, value) =>
+  {
+    const row = document.createElement('div');
+    row.className = 'tt-row';
+    const k = document.createElement('span');
+    k.className = 'tt-key';
+    k.textContent = key + ': ';
+    const v = document.createElement('span');
+    v.className = value ? 'tt-val' : 'tt-empty';
+    v.textContent = value || 'ej angivet';
+    row.append(k, v);
+    tip.appendChild(row);
+  };
+  const fmtButton = (text, which) => {
+    const t = exitButtonTarget(card, which);
+    const target = t.value ? (t.isTimeType ? 'tidstyps-id ' + t.value + ' (URL från Inställningar)' : t.value + (t.fromSettings ? ' (från Inställningar)' : '')) : '';
+    return [text, target].filter(v => String(v || '').trim()).join(' → ');
+  };
+  addRow('Informationstext', card.meddelande);
+  addRow('Primärknapp', fmtButton(card.primaryButtonText, 'primary'));
+  addRow('Sekundärknapp', fmtButton(card.secondaryButtonText, 'secondary'));
+
+  // Placera under knappen, flytta ovanför/inåt om den inte får plats i fönstret
+  const r = button.getBoundingClientRect();
+  const t = tip.getBoundingClientRect();
+  let left = r.left + r.width / 2 - t.width / 2;
+  let top  = r.bottom + 8;
+  if (top + t.height > window.innerHeight - 8) top = r.top - t.height - 8;
+  left = Math.max(8, Math.min(left, window.innerWidth - t.width - 8));
+  tip.style.left = left + 'px';
+  tip.style.top  = Math.max(8, top) + 'px';
+  tip.classList.add('visible');
+}
+
+function hideExitTooltip()
+{
+  document.getElementById('exitTooltip')?.classList.remove('visible');
+}
+
+// Minimera/återöppna informationsrutan – läget kommer ihåg per webbläsare
+function setLegendMinimized(minimized)
+{
+  const legend = document.getElementById('legend');
+  legend.classList.toggle('minimized', minimized);
+  try { localStorage.setItem('legendMinimized', minimized ? '1' : '0'); } catch (e) {}
+  document.getElementById(minimized ? 'legend-restore' : 'legend-min-btn').focus();
+}
+try { if (localStorage.getItem('legendMinimized') === '1') document.getElementById('legend').classList.add('minimized'); } catch (e) {}
+
+
+cnv.style.touchAction = 'none';
+init();
+</script>
+</body>
+</html>
+
+
+
